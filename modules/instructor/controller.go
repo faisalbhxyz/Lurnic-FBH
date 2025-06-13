@@ -13,11 +13,11 @@ import (
 	"gorm.io/gorm"
 )
 
-// func GetUsers(ctx *gin.Context) {
-// 	var users []User
-// 	utils.DB.Preload("Tenant").Select("id", "user_id", "name", "phone", "email", "status", "created_at", "updated_at", "tenant_id").Find(&users)
-// 	ctx.JSON(http.StatusOK, gin.H{"data": users})
-// }
+func GetInstructors(ctx *gin.Context) {
+	var users []models.Instructor
+	utils.DB.Find(&users)
+	ctx.JSON(http.StatusOK, gin.H{"data": users})
+}
 
 func CreateInstructor(ctx *gin.Context) {
 	var input CreateInstructorInput

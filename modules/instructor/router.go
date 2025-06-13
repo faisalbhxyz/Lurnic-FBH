@@ -9,7 +9,7 @@ import (
 func RegisterInstructorRoutes(rg *gin.RouterGroup) {
 	routesGroup := rg.Group("/instructor")
 	{
-		// userGroup.GET("/", middleware.AuthMiddleware(), GetUsers)
+		routesGroup.GET("/", middleware.AuthMiddleware(), GetInstructors)
 		routesGroup.POST("/register", middleware.AuthMiddleware(), CreateInstructor)
 		// userGroup.POST("/login", LoginUser)
 		// userGroup.POST("/upload", UploadUser)

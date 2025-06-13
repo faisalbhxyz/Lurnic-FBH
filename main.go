@@ -1,7 +1,9 @@
 package main
 
 import (
+	"dashlearn/models"
 	"dashlearn/modules/category"
+	"dashlearn/modules/course"
 	"dashlearn/modules/instructor"
 	"dashlearn/modules/user"
 	"dashlearn/utils"
@@ -41,13 +43,22 @@ func main() {
 	utils.ConnectDatabase()
 
 	// craete superadmin
-	utils.CreateSuperadminIfNotExists()
+	CreateSuperadminIfNotExists()
 
 	// Register routes
 	user.RegisterUserRoutes(apiRoutesGroup)
 	instructor.RegisterInstructorRoutes(apiRoutesGroup)
 	category.RegisterCategoryRoutes(apiRoutesGroup)
+	course.RegisterCourseRoutes(apiRoutesGroup)
 
 	// Run the server
 	router.Run(":5000")
+}
+
+func CreateSuperadminIfNotExists() {
+	var r models.Role
+	err := utils.DB.FirstOrCreate(&r, models.Role{Name: "superadmin", TenantID: nil}).Error
+	if err != nil {
+		panic("Failed to create or find superadmin role: " + err.Error())
+	}
 }

@@ -13,7 +13,7 @@ CREATE TABLE
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         tenant_id INT UNSIGNED NOT NULL,
-        FOREIGN KEY (tenant_id) REFERENCES tenants (id)
+        FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE
     );
 
 -- +goose StatementEnd
