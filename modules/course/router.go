@@ -7,9 +7,16 @@ import (
 )
 
 func RegisterCourseRoutes(rg *gin.RouterGroup) {
-	routerGroup := rg.Group("/course")
+
+	authGroup := rg.Group("/private/course", middleware.AuthMiddleware())
 	{
-		routerGroup.GET("/", middleware.AuthMiddleware(), GetCourses)
-		routerGroup.POST("/create", middleware.AuthMiddleware(), CreateCourse)
+		authGroup.GET("/", GetCourses)
+		authGroup.POST("/create", CreateCourse)
+	}
+
+	publicGroup := rg.Group("/public/course", middleware.GetTenantID())
+	{
+		publicGroup.GET("/", GetPublicCourses)
+		publicGroup.GET("/:id", GetCourseByID)
 	}
 }

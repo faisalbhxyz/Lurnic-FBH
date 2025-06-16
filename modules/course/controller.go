@@ -23,6 +23,39 @@ func GetCourses(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"data": courses})
 }
 
+func GetPublicCourses(ctx *gin.Context) {
+	var courses []models.CourseDetailsPublicResponse
+
+	if err := utils.DB.Where("tenant_id = ?", ctx.GetUint("tenant_id")).Preload("GeneralSettings").Preload("GeneralSettings.Category").Find(&courses).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"data": courses})
+}
+
+func GetCourseByID(ctx *gin.Context) {
+	courseID := ctx.Param("id")
+
+	var course models.CourseDetailsResponse
+
+	if err := utils.DB.
+		Where("tenant_id = ? AND id = ?", ctx.GetUint("tenant_id"), courseID).
+		Preload("Author").
+		Preload("Chapters").
+		Preload("Chapters.Lessons").
+		Preload("GeneralSettings").
+		Preload("GeneralSettings.Category").
+		Preload("Instructors").
+		Preload("Instructors.Instructor").
+		First(&course).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"data": course})
+}
+
 func CreateCourse(ctx *gin.Context) {
 	var input CourseDetailsInput
 	var flatInput CreateCourseDetailsInput
