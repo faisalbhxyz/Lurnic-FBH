@@ -1,4 +1,4 @@
-package instructor
+package student
 
 import (
 	"dashlearn/models"
@@ -13,14 +13,30 @@ import (
 	"gorm.io/gorm"
 )
 
-func GetInstructors(ctx *gin.Context) {
-	var users []models.Instructor
-	utils.DB.Find(&users)
+func GetStudents(ctx *gin.Context) {
+	var users []models.Student
+	utils.DB.Where("tenant_id = ?", ctx.GetUint("tenant_id")).Find(&users)
 	ctx.JSON(http.StatusOK, gin.H{"data": users})
 }
 
-func CreateInstructor(ctx *gin.Context) {
-	var input CreateInstructorInput
+func GetStudentLite(ctx *gin.Context) {
+	var users []struct {
+		ID        uint    `json:"id"`
+		FirstName string  `json:"first_name"`
+		LastName  *string `json:"last_name"`
+	}
+	if err := utils.DB.Table("students").Where("tenant_id = ?", ctx.GetUint("tenant_id")).
+		Select("id", "first_name", "last_name", "tenant_id").
+		Find(&users).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"data": users})
+}
+
+func CreateStudent(ctx *gin.Context) {
+	var input CreateStudentInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		var validationErrors validator.ValidationErrors
 		if errors.As(err, &validationErrors) {
@@ -63,7 +79,7 @@ func CreateInstructor(ctx *gin.Context) {
 		return
 	}
 
-	var existingUser models.Instructor
+	var existingUser models.Student
 	if err := utils.DB.Where("email = ?", input.Email).First(&existingUser).Error; err == nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Email already exists"})
 		return
@@ -72,11 +88,11 @@ func CreateInstructor(ctx *gin.Context) {
 		return
 	}
 
-	newUser := models.Instructor{
+	newUser := models.Student{
 		UserID:    cuid.New(),
 		FirstName: input.FirstName,
-		LastName:  utils.EmptyStringToNil(input.LastName),
-		Phone:     utils.EmptyStringToNil(input.Phone),
+		LastName:  utils.ZeroToNil(input.LastName),
+		Phone:     utils.ZeroToNil(input.Phone),
 		Email:     input.Email,
 		Password:  string(hashedPassword),
 		Status:    true,
@@ -84,11 +100,11 @@ func CreateInstructor(ctx *gin.Context) {
 	}
 
 	if err := utils.DB.Create(&newUser).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create instructor"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create student"})
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, gin.H{"message": "Instructor created successfully"})
+	ctx.JSON(http.StatusCreated, gin.H{"message": "Student created successfully"})
 }
 
 // func LoginUser(ctx *gin.Context) {

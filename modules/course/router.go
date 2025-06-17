@@ -11,6 +11,7 @@ func RegisterCourseRoutes(rg *gin.RouterGroup) {
 	authGroup := rg.Group("/private/course", middleware.AuthMiddleware())
 	{
 		authGroup.GET("/", GetCourses)
+		authGroup.GET("/lite", GetCoursesLite)
 		authGroup.POST("/create", CreateCourse)
 	}
 

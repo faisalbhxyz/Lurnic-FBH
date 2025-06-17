@@ -4,7 +4,9 @@ import (
 	"dashlearn/models"
 	"dashlearn/modules/category"
 	"dashlearn/modules/course"
+	"dashlearn/modules/enrollment"
 	"dashlearn/modules/instructor"
+	"dashlearn/modules/student"
 	"dashlearn/modules/user"
 	"dashlearn/utils"
 	"log"
@@ -49,8 +51,10 @@ func main() {
 	// Register routes
 	user.RegisterUserRoutes(apiRoutesGroup)
 	instructor.RegisterInstructorRoutes(apiRoutesGroup)
+	student.RegisterStudentRoutes(apiRoutesGroup)
 	category.RegisterCategoryRoutes(apiRoutesGroup)
 	course.RegisterCourseRoutes(apiRoutesGroup)
+	enrollment.RegisterEnrollmentRoutes(apiRoutesGroup)
 
 	// Run the server
 	router.Run(":5000")

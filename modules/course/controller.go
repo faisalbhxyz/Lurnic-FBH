@@ -23,6 +23,20 @@ func GetCourses(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"data": courses})
 }
 
+func GetCoursesLite(ctx *gin.Context) {
+	var courses []struct {
+		ID    uint   `json:"id"`
+		Title string `json:"title"`
+	}
+
+	if err := utils.DB.Table("course_details").Where("tenant_id = ?", ctx.GetUint("tenant_id")).Select("id", "title", "tenant_id").Find(&courses).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"data": courses})
+}
+
 func GetPublicCourses(ctx *gin.Context) {
 	var courses []models.CourseDetailsPublicResponse
 
