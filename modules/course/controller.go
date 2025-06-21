@@ -53,7 +53,7 @@ func GetCourseByID(c *gin.Context) {
 
 	var course models.CourseDetailsResponse
 
-	if err := utils.DB.Model(&models.CourseDetails{}).
+	if err := utils.DB.
 		Where("tenant_id = ? AND id = ?", c.GetUint("tenant_id"), courseID).
 		Preload("Author").
 		Preload("Chapters").
