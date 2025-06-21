@@ -9,12 +9,12 @@ import (
 )
 
 func GetTenantID() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		appKeyHeader := ctx.GetHeader("app-key")
+	return func(c *gin.Context) {
+		appKeyHeader := c.GetHeader("app-key")
 
 		if appKeyHeader == "" {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "App key (app-key) header is missing"})
-			ctx.Abort()
+			c.JSON(http.StatusBadRequest, gin.H{"error": "App key (app-key) header is missing"})
+			c.Abort()
 			return
 		}
 
@@ -23,13 +23,13 @@ func GetTenantID() gin.HandlerFunc {
 		utils.DB.Where("app_key = ?", appKeyHeader).Select("id", "app_key").First(&tenant)
 
 		if tenant.ID == 0 {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Tenant not found"})
-			ctx.Abort()
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Tenant not found"})
+			c.Abort()
 			return
 		}
 
-		ctx.Set("tenant_id", tenant.ID)
+		c.Set("tenant_id", tenant.ID)
 
-		ctx.Next()
+		c.Next()
 	}
 }

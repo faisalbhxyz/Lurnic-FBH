@@ -149,29 +149,30 @@ type CourseInstructor struct {
 
 // ! COURSES RESPONSE with chapters, instructors
 type CourseDetailsResponse struct {
-	ID              uint                    `gorm:"primaryKey;autoIncrement" json:"id"`
+	ID              uint                    `json:"id"`
 	Title           string                  `json:"title"`
-	Summary         string                  `gorm:"type:text" json:"summary"`
-	Description     *string                 `gorm:"type:text" json:"description"`
-	Visibility      Visibility              `gorm:"type:enum('public','private','protected');default:'public'" json:"visibility"`
-	IsScheduled     *bool                   `gorm:"default:false" json:"is_scheduled"`
-	ScheduleDate    *time.Time              `gorm:"type:date" json:"schedule_date"`
-	ScheduleTime    *time.Time              `gorm:"type:time" json:"schedule_time"`
-	FeaturedImage   *string                 `gorm:"column:featured_image" json:"featured_image"`
-	IntroVideo      datatypes.JSON          `gorm:"type:json;column:intro_video" json:"intro_video"`
-	PricingModel    PricingModel            `gorm:"column:pricing_model;enum('free','paid');default:'free'" json:"pricing_model"`
-	RegularPrice    *float32                `gorm:"column:regular_price;default:0" json:"regular_price"`
-	SalePrice       *float32                `gorm:"column:sale_price;default:0" json:"sale_price"`
-	ShowCommingSoom *bool                   `gorm:"default:false" json:"show_comming_soom"`
-	Tags            datatypes.JSON          `gorm:"type:json" json:"tags"`
-	Overview        datatypes.JSON          `gorm:"type:json" json:"overview"`
-	AuthorID        uint                    `gorm:"column:author_id" json:"author_id"`
-	Author          UserWithoutRole         `gorm:"foreignKey:AuthorID;references:ID" json:"author"`
-	CreatedAt       time.Time               `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt       time.Time               `gorm:"autoUpdateTime" json:"updated_at"`
-	Chapters        []CourseChapterResponse `gorm:"foreignKey:CourseID;references:ID" json:"course_chapters"`
-	GeneralSettings CourseGeneralSettings   `gorm:"foreignKey:CourseID;references:ID" json:"general_settings"`
-	Instructors     []CourseInstructor      `gorm:"foreignKey:CourseID;references:ID" json:"course_instructors"`
+	Summary         string                  `json:"summary"`
+	Description     *string                 `json:"description"`
+	Visibility      Visibility              `json:"visibility"`
+	IsScheduled     *bool                   `json:"is_scheduled"`
+	ScheduleDate    *time.Time              `json:"schedule_date"`
+	ScheduleTime    *time.Time              `json:"schedule_time"`
+	FeaturedImage   *string                 `json:"featured_image"`
+	IntroVideo      datatypes.JSON          `json:"intro_video"`
+	PricingModel    PricingModel            `json:"pricing_model"`
+	RegularPrice    *float32                `json:"regular_price"`
+	SalePrice       *float32                `json:"sale_price"`
+	ShowCommingSoom *bool                   `json:"show_comming_soom"`
+	Tags            datatypes.JSON          `json:"tags"`
+	Overview        datatypes.JSON          `json:"overview"`
+	AuthorID        uint                    `json:"author_id"`
+	Author          UserWithoutRole         `json:"author"`
+	CreatedAt       time.Time               `json:"created_at"`
+	UpdatedAt       time.Time               `json:"updated_at"`
+	Chapters        []CourseChapterResponse `json:"course_chapters"`
+	GeneralSettings CourseGeneralSettings   `json:"general_settings"`
+	Instructors     []CourseInstructor      `json:"course_instructors"`
+	Enrollments     []EnrollmentResponse    `json:"enrollments"`
 }
 
 func (CourseDetailsResponse) TableName() string {

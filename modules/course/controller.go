@@ -12,49 +12,49 @@ import (
 	"github.com/jinzhu/copier"
 )
 
-func GetCourses(ctx *gin.Context) {
+func GetCourses(c *gin.Context) {
 	var courses []models.CourseDetailsResponse
 
-	if err := utils.DB.Where("tenant_id = ?", ctx.GetUint("tenant_id")).Preload("Author").Preload("Chapters").Preload("Chapters.Lessons").Preload("GeneralSettings").Preload("GeneralSettings.Category").Preload("Instructors").Preload("Instructors.Instructor").Find(&courses).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := utils.DB.Where("tenant_id = ?", c.GetUint("tenant_id")).Preload("Author").Preload("Chapters").Preload("Chapters.Lessons").Preload("GeneralSettings").Preload("GeneralSettings.Category").Preload("Instructors").Preload("Instructors.Instructor").Find(&courses).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"data": courses})
+	c.JSON(http.StatusOK, gin.H{"data": courses})
 }
 
-func GetCoursesLite(ctx *gin.Context) {
+func GetCoursesLite(c *gin.Context) {
 	var courses []struct {
 		ID    uint   `json:"id"`
 		Title string `json:"title"`
 	}
 
-	if err := utils.DB.Table("course_details").Where("tenant_id = ?", ctx.GetUint("tenant_id")).Select("id", "title", "tenant_id").Find(&courses).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := utils.DB.Table("course_details").Where("tenant_id = ?", c.GetUint("tenant_id")).Select("id", "title", "tenant_id").Find(&courses).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"data": courses})
+	c.JSON(http.StatusOK, gin.H{"data": courses})
 }
 
-func GetPublicCourses(ctx *gin.Context) {
+func GetPublicCourses(c *gin.Context) {
 	var courses []models.CourseDetailsPublicResponse
 
-	if err := utils.DB.Where("tenant_id = ?", ctx.GetUint("tenant_id")).Preload("GeneralSettings").Preload("GeneralSettings.Category").Find(&courses).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := utils.DB.Where("tenant_id = ?", c.GetUint("tenant_id")).Preload("GeneralSettings").Preload("GeneralSettings.Category").Find(&courses).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"data": courses})
+	c.JSON(http.StatusOK, gin.H{"data": courses})
 }
 
-func GetCourseByID(ctx *gin.Context) {
-	courseID := ctx.Param("id")
+func GetCourseByID(c *gin.Context) {
+	courseID := c.Param("id")
 
 	var course models.CourseDetailsResponse
 
-	if err := utils.DB.
-		Where("tenant_id = ? AND id = ?", ctx.GetUint("tenant_id"), courseID).
+	if err := utils.DB.Model(&models.CourseDetails{}).
+		Where("tenant_id = ? AND id = ?", c.GetUint("tenant_id"), courseID).
 		Preload("Author").
 		Preload("Chapters").
 		Preload("Chapters.Lessons").
@@ -62,59 +62,60 @@ func GetCourseByID(ctx *gin.Context) {
 		Preload("GeneralSettings.Category").
 		Preload("Instructors").
 		Preload("Instructors.Instructor").
+		Preload("Enrollments").
 		First(&course).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"data": course})
+	c.JSON(http.StatusOK, gin.H{"data": course})
 }
 
-func CreateCourse(ctx *gin.Context) {
+func CreateCourse(c *gin.Context) {
 	var input CourseDetailsInput
 	var flatInput CreateCourseDetailsInput
 
 	// Step 1: Bind all flat fields (this ignores nested JSON fields like course_chapters)
-	if err := ctx.ShouldBindWith(&flatInput, binding.FormMultipart); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := c.ShouldBindWith(&flatInput, binding.FormMultipart); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	_ = copier.Copy(&input, &flatInput)
 
 	// Step 2: Manually parse nested JSON fields from string values
-	if chaptersStr := ctx.PostForm("course_chapters"); chaptersStr != "" {
+	if chaptersStr := c.PostForm("course_chapters"); chaptersStr != "" {
 		var courseChapters []CreateCourseChapter
 		if err := json.Unmarshal([]byte(chaptersStr), &courseChapters); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid course_chapters: " + err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid course_chapters: " + err.Error()})
 			return
 		}
 		input.CourseChapters = courseChapters
 	}
 
-	if generalSettingsStr := ctx.PostForm("general_settings"); generalSettingsStr != "" {
+	if generalSettingsStr := c.PostForm("general_settings"); generalSettingsStr != "" {
 		var generalSettings CreateGeneralSettings
 		if err := json.Unmarshal([]byte(generalSettingsStr), &generalSettings); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid general_settings: " + err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid general_settings: " + err.Error()})
 			return
 		}
 		input.GeneralSettings = generalSettings
 	}
 
-	if instructorsStr := ctx.PostForm("course_instructors"); instructorsStr != "" {
+	if instructorsStr := c.PostForm("course_instructors"); instructorsStr != "" {
 		var instructors []int32
 		if err := json.Unmarshal([]byte(instructorsStr), &instructors); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid instructors: " + err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid instructors: " + err.Error()})
 			return
 		}
 		input.Instructors = instructors
 	}
 
-	file, err := ctx.FormFile("featured_image")
+	file, err := c.FormFile("featured_image")
 	if err == nil {
 		url, err := utils.UploadFile(context.Background(), file)
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 		input.FeaturedImage = &url
@@ -178,12 +179,12 @@ func CreateCourse(ctx *gin.Context) {
 		Overview:        overviewJSON,
 		FeaturedImage:   input.FeaturedImage,
 		IntroVideo:      introVideo,
-		AuthorID:        ctx.GetUint("user_id"),
-		TenantID:        ctx.GetUint("tenant_id"),
+		AuthorID:        c.GetUint("user_id"),
+		TenantID:        c.GetUint("tenant_id"),
 	}
 
 	if err := utils.DB.Create(&newCourseDetails).Error; err != nil {
-		ctx.JSON(400, gin.H{"error": err.Error()})
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -198,7 +199,7 @@ func CreateCourse(ctx *gin.Context) {
 		}
 
 		if err := utils.DB.Create(&newCourseChapter).Error; err != nil {
-			ctx.JSON(400, gin.H{"error": err.Error()})
+			c.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
 
@@ -224,7 +225,7 @@ func CreateCourse(ctx *gin.Context) {
 					IsPublic:    lesson.IsPublic,
 				}
 				if err := utils.DB.Create(&newCourseLesson).Error; err != nil {
-					ctx.JSON(400, gin.H{"error": err.Error()})
+					c.JSON(400, gin.H{"error": err.Error()})
 					return
 				}
 
@@ -239,7 +240,7 @@ func CreateCourse(ctx *gin.Context) {
 			InstructorID: uint(instructor),
 		}
 		if err := utils.DB.Create(&newCourseInstructor).Error; err != nil {
-			ctx.JSON(400, gin.H{"error": err.Error()})
+			c.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
 	}
@@ -265,9 +266,9 @@ func CreateCourse(ctx *gin.Context) {
 	}
 
 	if err := utils.DB.Create(&newGeneralSettings).Error; err != nil {
-		ctx.JSON(400, gin.H{"error": err.Error()})
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(200, gin.H{"message": "Course created successfully."})
+	c.JSON(200, gin.H{"message": "Course created successfully."})
 }

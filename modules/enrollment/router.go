@@ -13,4 +13,9 @@ func RegisterEnrollmentRoutes(rg *gin.RouterGroup) {
 		authGroup.GET("/", GetEnrollments)
 		authGroup.POST("/create", CreateEnrollment)
 	}
+
+	publicGroup := rg.Group("/enrolled", middleware.GetTenantID())
+	{
+		publicGroup.GET("/courses", middleware.StudentAuthMiddleware(), GetEnrolledCourses)
+	}
 }

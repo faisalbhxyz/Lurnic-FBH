@@ -22,7 +22,7 @@ import (
 
 type customResolver struct{}
 
-func (r customResolver) ResolveEndpoint(ctx context.Context, params s3.EndpointParameters) (endpoints.Endpoint, error) {
+func (r customResolver) ResolveEndpoint(c context.Context, params s3.EndpointParameters) (endpoints.Endpoint, error) {
 	bucket := os.Getenv("DO_BUCKET_NAME")
 	region := os.Getenv("DO_REGION")
 	if region == "" || bucket == "" {
@@ -46,8 +46,8 @@ func (r customResolver) ResolveEndpoint(ctx context.Context, params s3.EndpointP
 	}, nil
 }
 
-func initS3(ctx context.Context) (*s3.Client, error) {
-	cfg, err := config.LoadDefaultConfig(ctx,
+func initS3(c context.Context) (*s3.Client, error) {
+	cfg, err := config.LoadDefaultConfig(c,
 		config.WithRegion(os.Getenv("DO_REGION")),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			os.Getenv("DO_ACCESS_KEY"),
@@ -65,7 +65,7 @@ func initS3(ctx context.Context) (*s3.Client, error) {
 
 	return client, nil
 }
-func UploadFile(ctx context.Context, fileHeader *multipart.FileHeader) (string, error) {
+func UploadFile(c context.Context, fileHeader *multipart.FileHeader) (string, error) {
 	file, err := fileHeader.Open()
 	if err != nil {
 		return "", fmt.Errorf("failed to open file: %w", err)
@@ -78,7 +78,7 @@ func UploadFile(ctx context.Context, fileHeader *multipart.FileHeader) (string, 
 		return "", fmt.Errorf("failed to read file: %w", err)
 	}
 
-	s3Client, err := initS3(ctx)
+	s3Client, err := initS3(c)
 	if err != nil {
 		return "", err
 	}
@@ -98,7 +98,7 @@ func UploadFile(ctx context.Context, fileHeader *multipart.FileHeader) (string, 
 		ACL:         s3types.ObjectCannedACLPublicRead,
 	}
 
-	_, err = s3Client.PutObject(ctx, input)
+	_, err = s3Client.PutObject(c, input)
 	if err != nil {
 		return "", fmt.Errorf("failed to upload file: %w", err)
 	}

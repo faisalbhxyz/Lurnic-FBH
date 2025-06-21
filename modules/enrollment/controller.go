@@ -9,32 +9,32 @@ import (
 	"gorm.io/gorm"
 )
 
-func CreateEnrollment(ctx *gin.Context) {
+func CreateEnrollment(c *gin.Context) {
 	var input models.Enrollment
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	newEnrollment := models.Enrollment{
 		StudentID: input.StudentID,
 		CourseID:  input.CourseID,
-		TenantID:  ctx.GetUint("tenant_id"),
+		TenantID:  c.GetUint("tenant_id"),
 	}
 
 	if err := utils.DB.Create(&newEnrollment).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"message": "Enrollment created successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Enrollment created successfully"})
 }
 
-func GetEnrollments(ctx *gin.Context) {
+func GetEnrollments(c *gin.Context) {
 	var enrollments []models.EnrollmentResponse
 
 	if err := utils.DB.
-		Where("tenant_id = ?", ctx.GetUint("tenant_id")).
+		Where("tenant_id = ?", c.GetUint("tenant_id")).
 		Preload("Student", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id", "first_name", "last_name", "email")
 		}).
@@ -42,9 +42,23 @@ func GetEnrollments(ctx *gin.Context) {
 			return db.Select("id", "title")
 		}).
 		Find(&enrollments).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"data": enrollments})
+	c.JSON(http.StatusOK, gin.H{"data": enrollments})
+}
+
+func GetEnrolledCourses(c *gin.Context) {
+	var enrollments []models.EnrolledCourseRes
+
+	utils.DB.
+		Where(&models.Enrollment{
+			TenantID:  c.GetUint("tenant_id"),
+			StudentID: c.GetUint("user_id"),
+		}).
+		Preload("Course").
+		Find(&enrollments)
+
+	c.JSON(http.StatusOK, gin.H{"data": enrollments})
 }

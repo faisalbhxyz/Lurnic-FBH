@@ -11,34 +11,34 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-func GetAllCategory(ctx *gin.Context) {
+func GetAllCategory(c *gin.Context) {
 	var categories []models.Category
-	utils.DB.Where("tenant_id = ?", ctx.GetUint("tenant_id")).Find(&categories)
-	ctx.JSON(http.StatusOK, gin.H{"data": categories})
+	utils.DB.Where("tenant_id = ?", c.GetUint("tenant_id")).Find(&categories)
+	c.JSON(http.StatusOK, gin.H{"data": categories})
 }
 
-func GetAllCategoryPublic(ctx *gin.Context) {
+func GetAllCategoryPublic(c *gin.Context) {
 	var categories []models.Category
-	utils.DB.Where("tenant_id = ?", ctx.GetUint("tenant_id")).Find(&categories)
-	ctx.JSON(http.StatusOK, gin.H{"data": categories})
+	utils.DB.Where("tenant_id = ?", c.GetUint("tenant_id")).Find(&categories)
+	c.JSON(http.StatusOK, gin.H{"data": categories})
 }
 
-func GetCategoryByID(ctx *gin.Context) {
-	categoryID, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
+func GetCategoryByID(c *gin.Context) {
+	categoryID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
 		return
 	}
 
 	var category models.Category
-	utils.DB.Where("id = ? AND tenant_id = ?", categoryID, ctx.GetUint("tenant_id")).First(&category)
-	ctx.JSON(http.StatusOK, gin.H{"data": category})
+	utils.DB.Where("id = ? AND tenant_id = ?", categoryID, c.GetUint("tenant_id")).First(&category)
+	c.JSON(http.StatusOK, gin.H{"data": category})
 }
 
-func CreateCategory(ctx *gin.Context) {
+func CreateCategory(c *gin.Context) {
 	var input CreateCategoryInput
 
-	if err := ctx.ShouldBindJSON(&input); err != nil {
+	if err := c.ShouldBindJSON(&input); err != nil {
 
 		var validationErrors validator.ValidationErrors
 		if errors.As(err, &validationErrors) {
@@ -58,15 +58,15 @@ func CreateCategory(ctx *gin.Context) {
 					}
 				}
 			}
-			ctx.JSON(http.StatusBadRequest, gin.H{"errors": errorsMap})
+			c.JSON(http.StatusBadRequest, gin.H{"errors": errorsMap})
 			return
 		}
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if utils.DB.Where("slug = ? AND tenant_id = ?", input.Slug, ctx.GetUint("tenant_id")).First(&models.Category{}).RowsAffected > 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Category with this slug already exists"})
+	if utils.DB.Where("slug = ? AND tenant_id = ?", input.Slug, c.GetUint("tenant_id")).First(&models.Category{}).RowsAffected > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Category with this slug already exists"})
 		return
 	}
 
@@ -74,33 +74,33 @@ func CreateCategory(ctx *gin.Context) {
 		Name:        input.Name,
 		Slug:        input.Slug,
 		Description: utils.EmptyStringToNil(input.Description),
-		TenantID:    ctx.GetUint("tenant_id"),
+		TenantID:    c.GetUint("tenant_id"),
 	}
 
 	if err := utils.DB.Create(&newCategory).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, gin.H{"message": "Category created successfully"})
+	c.JSON(http.StatusCreated, gin.H{"message": "Category created successfully"})
 }
 
-func UpdateCategory(ctx *gin.Context) {
+func UpdateCategory(c *gin.Context) {
 	var category models.Category
-	categoryID, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
+	categoryID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
 		return
 	}
 
-	if err := utils.DB.Where("id = ? AND tenant_id = ?", categoryID, ctx.GetUint("tenant_id")).First(&category).Error; err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
+	if err := utils.DB.Where("id = ? AND tenant_id = ?", categoryID, c.GetUint("tenant_id")).First(&category).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
 		return
 	}
 
 	var input CreateCategoryInput
 
-	if err := ctx.ShouldBindJSON(&input); err != nil {
+	if err := c.ShouldBindJSON(&input); err != nil {
 
 		var validationErrors validator.ValidationErrors
 		if errors.As(err, &validationErrors) {
@@ -120,15 +120,15 @@ func UpdateCategory(ctx *gin.Context) {
 					}
 				}
 			}
-			ctx.JSON(http.StatusBadRequest, gin.H{"errors": errorsMap})
+			c.JSON(http.StatusBadRequest, gin.H{"errors": errorsMap})
 			return
 		}
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if utils.DB.Where("slug = ? AND tenant_id = ? AND id != ?", input.Slug, ctx.GetUint("tenant_id"), categoryID).First(&models.Category{}).RowsAffected > 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Category with this slug already exists"})
+	if utils.DB.Where("slug = ? AND tenant_id = ? AND id != ?", input.Slug, c.GetUint("tenant_id"), categoryID).First(&models.Category{}).RowsAffected > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Category with this slug already exists"})
 		return
 	}
 
@@ -138,9 +138,9 @@ func UpdateCategory(ctx *gin.Context) {
 	category.Description = utils.EmptyStringToNil(input.Description)
 
 	if err := utils.DB.Save(&category).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update category"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update category"})
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, gin.H{"message": "Category updated successfully"})
+	c.JSON(http.StatusCreated, gin.H{"message": "Category updated successfully"})
 }

@@ -12,9 +12,9 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var SecretKey = []byte(os.Getenv("JWT_SECRET"))
+var SecretKey2 = []byte(os.Getenv("JWT_SECRET"))
 
-func AuthMiddleware() gin.HandlerFunc {
+func StudentAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 
@@ -38,7 +38,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, jwt.ErrSignatureInvalid
 			}
-			return SecretKey, nil
+			return SecretKey2, nil
 		})
 
 		if err != nil || !token.Valid {
@@ -56,7 +56,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			}
 
 			// get tenantID
-			var user models.User
+			var user models.Student
 			utils.DB.Where("user_id = ?", claims["user_id"]).Select("id", "user_id", "tenant_id").First(&user)
 
 			// Set user info in context

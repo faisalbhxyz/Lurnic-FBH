@@ -15,21 +15,21 @@ import (
 	"gorm.io/gorm"
 )
 
-func GetInstructors(ctx *gin.Context) {
+func GetInstructors(c *gin.Context) {
 	var users []models.Instructor
 	utils.DB.Find(&users)
-	ctx.JSON(http.StatusOK, gin.H{"data": users})
+	c.JSON(http.StatusOK, gin.H{"data": users})
 }
 
-func GetInstructorsLite(ctx *gin.Context) {
+func GetInstructorsLite(c *gin.Context) {
 	var users []models.InstructorResponseLite
 	utils.DB.Find(&users)
-	ctx.JSON(http.StatusOK, gin.H{"data": users})
+	c.JSON(http.StatusOK, gin.H{"data": users})
 }
 
-func CreateInstructor(ctx *gin.Context) {
+func CreateInstructor(c *gin.Context) {
 	var input CreateInstructorInput
-	if err := ctx.ShouldBindWith(&input, binding.FormMultipart); err != nil {
+	if err := c.ShouldBindWith(&input, binding.FormMultipart); err != nil {
 		var validationErrors validator.ValidationErrors
 		if errors.As(err, &validationErrors) {
 			errorsMap := make(map[string]string)
@@ -61,22 +61,22 @@ func CreateInstructor(ctx *gin.Context) {
 			}
 		}
 
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	var imageURL *string
-	file, err := ctx.FormFile("image")
+	file, err := c.FormFile("image")
 	if err == nil {
 		if file.Size > 2*1024*1024 {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Max image size is 2MB"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Max image size is 2MB"})
 			return
 		}
 
 		// ✅ 2. MIME type check
 		src, err := file.Open()
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open image file"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open image file"})
 			return
 		}
 		defer src.Close()
@@ -84,7 +84,7 @@ func CreateInstructor(ctx *gin.Context) {
 		// Detect content type
 		buffer := make([]byte, 512)
 		if _, err := src.Read(buffer); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read file content"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read file content"})
 			return
 		}
 		contentType := http.DetectContentType(buffer)
@@ -97,7 +97,7 @@ func CreateInstructor(ctx *gin.Context) {
 			// "image/gif":  true,
 		}
 		if !allowedTypes[contentType] {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Only PNG, JPG formats are supported"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Only PNG, JPG formats are supported"})
 			return
 		}
 
@@ -110,14 +110,14 @@ func CreateInstructor(ctx *gin.Context) {
 
 		// 	img, _, err := image.Decode(src)
 		// 	if err != nil {
-		// 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Failed to decode image"})
+		// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to decode image"})
 		// 		return
 		// 	}
 		// 	width := img.Bounds().Dx()
 		// 	height := img.Bounds().Dy()
 
 		// 	if width > 1920 || height > 1080 {
-		// 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Image must be 1920x1080 pixels or smaller"})
+		// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Image must be 1920x1080 pixels or smaller"})
 		// 		return
 		// 	}
 		// }
@@ -125,7 +125,7 @@ func CreateInstructor(ctx *gin.Context) {
 		// save file
 		url, err := utils.UploadFile(context.Background(), file)
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 		imageURL = &url
@@ -135,16 +135,16 @@ func CreateInstructor(ctx *gin.Context) {
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
 		return
 	}
 
 	var existingUser models.Instructor
 	if err := utils.DB.Where("email = ?", input.Email).First(&existingUser).Error; err == nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Email already exists"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email already exists"})
 		return
 	} else if err != gorm.ErrRecordNotFound {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
 		return
 	}
 
@@ -159,21 +159,21 @@ func CreateInstructor(ctx *gin.Context) {
 		Email:       input.Email,
 		Password:    string(hashedPassword),
 		Status:      true,
-		TenantID:    ctx.GetUint("tenant_id"),
+		TenantID:    c.GetUint("tenant_id"),
 	}
 
 	if err := utils.DB.Create(&newUser).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create instructor"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create instructor"})
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, gin.H{"message": "Instructor created successfully"})
+	c.JSON(http.StatusCreated, gin.H{"message": "Instructor created successfully"})
 }
 
-// func LoginUser(ctx *gin.Context) {
+// func LoginUser(c *gin.Context) {
 // 	var input LoginUserInput
 
-// 	if err := ctx.ShouldBindJSON(&input); err != nil {
+// 	if err := c.ShouldBindJSON(&input); err != nil {
 // 		var validationErrors validator.ValidationErrors
 // 		if errors.As(err, &validationErrors) {
 // 			errorsMap := make(map[string]string)
@@ -195,37 +195,37 @@ func CreateInstructor(ctx *gin.Context) {
 // 					}
 // 				}
 // 			}
-// 			ctx.JSON(http.StatusBadRequest, gin.H{"error": errorsMap})
+// 			c.JSON(http.StatusBadRequest, gin.H{"error": errorsMap})
 // 			return
 // 		}
-// 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 // 		return
 // 	}
 
 // 	var user User
 // 	err := utils.DB.Where("email = ?", input.Email).First(&user).Error
 // 	if errors.Is(err, gorm.ErrRecordNotFound) {
-// 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Email not found"})
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Email not found"})
 // 		return
 // 	} else if err != nil {
-// 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
 // 		return
 // 	}
 
 // 	// Compare the provided password with the stored hashed password
 // 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
-// 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid password"})
+// 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid password"})
 // 		return
 // 	}
 
 // 	// Generate JWT token
 // 	token, err := utils.GenerateJWT(user.UserID)
 // 	if err != nil {
-// 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 // 		return
 // 	}
 
-// 	ctx.JSON(http.StatusOK, gin.H{
+// 	c.JSON(http.StatusOK, gin.H{
 // 		"token": token,
 // 		"user": gin.H{
 // 			"user_id": user.UserID,

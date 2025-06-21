@@ -47,3 +47,16 @@ type EnrollmentResponse struct {
 func (EnrollmentResponse) TableName() string {
 	return "enrollments"
 }
+
+type EnrolledCourseRes struct {
+	ID        uint                        `gorm:"primaryKey;autoIncrement" json:"id"`
+	CourseID  uint                        `gorm:"column:course_id" json:"course_id"`
+	Course    CourseDetailsPublicResponse `gorm:"foreignKey:ID;references:CourseID" json:"course"`
+	StudentID uint                        `gorm:"column:student_id" json:"student_id"`
+	CreatedAt time.Time                   `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time                   `gorm:"autoUpdateTime" json:"updated_at"`
+}
+
+func (EnrolledCourseRes) TableName() string {
+	return "enrollments"
+}

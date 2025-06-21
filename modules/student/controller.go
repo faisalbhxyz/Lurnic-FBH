@@ -13,31 +13,31 @@ import (
 	"gorm.io/gorm"
 )
 
-func GetStudents(ctx *gin.Context) {
+func GetStudents(c *gin.Context) {
 	var users []models.Student
-	utils.DB.Preload("Enrollments").Where("tenant_id = ?", ctx.GetUint("tenant_id")).Find(&users)
-	ctx.JSON(http.StatusOK, gin.H{"data": users})
+	utils.DB.Preload("Enrollments").Where("tenant_id = ?", c.GetUint("tenant_id")).Find(&users)
+	c.JSON(http.StatusOK, gin.H{"data": users})
 }
 
-func GetStudentLite(ctx *gin.Context) {
+func GetStudentLite(c *gin.Context) {
 	var users []struct {
 		ID        uint    `json:"id"`
 		FirstName string  `json:"first_name"`
 		LastName  *string `json:"last_name"`
 	}
-	if err := utils.DB.Table("students").Where("tenant_id = ?", ctx.GetUint("tenant_id")).
+	if err := utils.DB.Table("students").Where("tenant_id = ?", c.GetUint("tenant_id")).
 		Select("id", "first_name", "last_name", "tenant_id").
 		Find(&users).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"data": users})
+	c.JSON(http.StatusOK, gin.H{"data": users})
 }
 
-func CreateStudent(ctx *gin.Context) {
+func CreateStudent(c *gin.Context) {
 	var input CreateStudentInput
-	if err := ctx.ShouldBindJSON(&input); err != nil {
+	if err := c.ShouldBindJSON(&input); err != nil {
 		var validationErrors validator.ValidationErrors
 		if errors.As(err, &validationErrors) {
 			errorsMap := make(map[string]string)
@@ -69,22 +69,25 @@ func CreateStudent(ctx *gin.Context) {
 			}
 		}
 
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
 		return
 	}
 
 	var existingUser models.Student
-	if err := utils.DB.Where("email = ?", input.Email).First(&existingUser).Error; err == nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Email already exists"})
+	if err := utils.DB.Where(
+		"(email = ? OR phone = ?) AND tenant_id = ?",
+		input.Email, input.Phone, c.GetUint("tenant_id"),
+	).First(&existingUser).Error; err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email or phone already exists"})
 		return
 	} else if err != gorm.ErrRecordNotFound {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
 		return
 	}
 
@@ -96,21 +99,96 @@ func CreateStudent(ctx *gin.Context) {
 		Email:     input.Email,
 		Password:  string(hashedPassword),
 		Status:    true,
-		TenantID:  ctx.GetUint("tenant_id"),
+		TenantID:  c.GetUint("tenant_id"),
 	}
 
 	if err := utils.DB.Create(&newUser).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create student"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create student"})
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, gin.H{"message": "Student created successfully"})
+	c.JSON(http.StatusCreated, gin.H{"message": "Student created successfully"})
 }
 
-func LoginStudent(ctx *gin.Context) {
+func CreateStudentPublic(c *gin.Context) {
+	var input CreateStudentInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		var validationErrors validator.ValidationErrors
+		if errors.As(err, &validationErrors) {
+			errorsMap := make(map[string]string)
+			for _, fieldErr := range validationErrors {
+				field := fieldErr.Field()
+				tag := fieldErr.Tag()
+
+				switch field {
+				case "FirstName":
+					switch tag {
+					case "required":
+						errorsMap["firstname"] = "First Name is required"
+					}
+				case "Email":
+					switch tag {
+					case "required":
+						errorsMap["email"] = "Email is required"
+					case "email":
+						errorsMap["email"] = "Invalid email format"
+					}
+				case "Password":
+					switch tag {
+					case "required":
+						errorsMap["password"] = "Password is required"
+					case "min":
+						errorsMap["password"] = "Password must be at least 6 characters long"
+					}
+				}
+			}
+		}
+
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
+		return
+	}
+
+	var existingUser models.Student
+	if err := utils.DB.Where(
+		"(email = ? OR phone = ?) AND tenant_id = ?",
+		input.Email, input.Phone, c.GetUint("tenant_id"),
+	).First(&existingUser).Error; err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email or phone already exists"})
+		return
+	} else if err != gorm.ErrRecordNotFound {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
+		return
+	}
+
+	newUser := models.Student{
+		UserID:    cuid.New(),
+		FirstName: input.FirstName,
+		LastName:  utils.ZeroToNil(input.LastName),
+		Phone:     utils.ZeroToNil(input.Phone),
+		Email:     input.Email,
+		Password:  string(hashedPassword),
+		Status:    true,
+		TenantID:  c.GetUint("tenant_id"),
+	}
+
+	if err := utils.DB.Create(&newUser).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create student"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Student created successfully"})
+}
+
+func LoginStudent(c *gin.Context) {
 	var input LoginStudentInput
 
-	if err := ctx.ShouldBindJSON(&input); err != nil {
+	if err := c.ShouldBindJSON(&input); err != nil {
 		var validationErrors validator.ValidationErrors
 		if errors.As(err, &validationErrors) {
 			errorsMap := make(map[string]string)
@@ -132,37 +210,37 @@ func LoginStudent(ctx *gin.Context) {
 					}
 				}
 			}
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": errorsMap})
+			c.JSON(http.StatusBadRequest, gin.H{"error": errorsMap})
 			return
 		}
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	var user models.Student
-	err := utils.DB.Where("email = ?", input.Email).First(&user).Error
+	err := utils.DB.Where("email = ? AND tenant_id = ?", input.Email, c.GetUint("tenant_id")).First(&user).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Email not found"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email not found"})
 		return
 	} else if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
 		return
 	}
 
 	// Compare the provided password with the stored hashed password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid password"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid password"})
 		return
 	}
 
 	// Generate JWT token
 	token, err := utils.GenerateJWT(user.UserID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"token": token,
 		"user": gin.H{
 			"user_id": user.UserID,
@@ -177,4 +255,14 @@ func LoginStudent(ctx *gin.Context) {
 		},
 	})
 
+}
+
+func GetStudentDetails(c *gin.Context) {
+	var users models.StudentDetailsRes
+	utils.DB.
+		Preload("Enrollments").
+		Where("tenant_id = ? AND id = ?", c.GetUint("tenant_id"), c.GetUint("user_id")).
+		First(&users)
+
+	c.JSON(http.StatusOK, gin.H{"data": users})
 }

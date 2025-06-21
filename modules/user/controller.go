@@ -15,18 +15,18 @@ import (
 	"gorm.io/gorm"
 )
 
-func CheckUser(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, gin.H{"data": "WORKING"})
+func CheckUser(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"data": "WORKING"})
 }
-func GetUsers(ctx *gin.Context) {
+func GetUsers(c *gin.Context) {
 	var users []models.User
 	utils.DB.Preload("Tenant").Select("id", "user_id", "name", "phone", "email", "status", "created_at", "updated_at", "tenant_id").Find(&users)
-	ctx.JSON(http.StatusOK, gin.H{"data": users})
+	c.JSON(http.StatusOK, gin.H{"data": users})
 }
 
-func CreateUser(ctx *gin.Context) {
+func CreateUser(c *gin.Context) {
 	var input CreateUserInput
-	if err := ctx.ShouldBindJSON(&input); err != nil {
+	if err := c.ShouldBindJSON(&input); err != nil {
 
 		var validationErrors validator.ValidationErrors
 		if errors.As(err, &validationErrors) {
@@ -54,26 +54,26 @@ func CreateUser(ctx *gin.Context) {
 					}
 				}
 			}
-			ctx.JSON(http.StatusBadRequest, gin.H{"errors": errorsMap})
+			c.JSON(http.StatusBadRequest, gin.H{"errors": errorsMap})
 			return
 		}
 
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
 		return
 	}
 
 	var existingUser models.User
 	if err := utils.DB.Where("email = ?", input.Email).First(&existingUser).Error; err == nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Email already exists"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email already exists"})
 		return
 	} else if err != gorm.ErrRecordNotFound {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
 		return
 	}
 
@@ -82,13 +82,13 @@ func CreateUser(ctx *gin.Context) {
 	}
 
 	if err := utils.DB.Create(&newTenant).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
 		return
 	}
 
 	var superadmin models.Role
 	if err := utils.DB.Where("name = ?", "superadmin").First(&superadmin).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
 		return
 	}
 
@@ -104,17 +104,17 @@ func CreateUser(ctx *gin.Context) {
 	}
 
 	if err := utils.DB.Create(&newUser).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, gin.H{"message": "User created successfully"})
+	c.JSON(http.StatusCreated, gin.H{"message": "User created successfully"})
 }
 
-func LoginUser(ctx *gin.Context) {
+func LoginUser(c *gin.Context) {
 	var input LoginUserInput
 
-	if err := ctx.ShouldBindJSON(&input); err != nil {
+	if err := c.ShouldBindJSON(&input); err != nil {
 		var validationErrors validator.ValidationErrors
 		if errors.As(err, &validationErrors) {
 			errorsMap := make(map[string]string)
@@ -136,37 +136,37 @@ func LoginUser(ctx *gin.Context) {
 					}
 				}
 			}
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": errorsMap})
+			c.JSON(http.StatusBadRequest, gin.H{"error": errorsMap})
 			return
 		}
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	var user models.User
 	err := utils.DB.Where("email = ?", input.Email).First(&user).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Email not found"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email not found"})
 		return
 	} else if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
 		return
 	}
 
 	// Compare the provided password with the stored hashed password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid password"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid password"})
 		return
 	}
 
 	// Generate JWT token
 	token, err := utils.GenerateJWT(user.UserID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"token": token,
 		"user": gin.H{
 			"user_id": user.UserID,
