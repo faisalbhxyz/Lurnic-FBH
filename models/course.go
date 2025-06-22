@@ -162,7 +162,7 @@ type CourseDetailsResponse struct {
 	PricingModel    PricingModel            `gorm:"column:pricing_model;enum('free','paid');default:'free'" json:"pricing_model"`
 	RegularPrice    *float32                `gorm:"column:regular_price;default:0" json:"regular_price"`
 	SalePrice       *float32                `gorm:"column:sale_price;default:0" json:"sale_price"`
-	ShowCommingSoom *bool                   `gorm:"default:false" json:"show_comming_soom"`
+	ShowCommingSoon *bool                   `gorm:"column:show_comming_soom;default:false" json:"show_comming_soon"`
 	Tags            datatypes.JSON          `gorm:"type:json" json:"tags"`
 	Overview        datatypes.JSON          `gorm:"type:json" json:"overview"`
 	AuthorID        uint                    `gorm:"column:author_id" json:"author_id"`

@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -65,6 +66,7 @@ func initS3(c context.Context) (*s3.Client, error) {
 
 	return client, nil
 }
+
 func UploadFile(c context.Context, fileHeader *multipart.FileHeader) (string, error) {
 	file, err := fileHeader.Open()
 	if err != nil {
@@ -110,4 +112,38 @@ func UploadFile(c context.Context, fileHeader *multipart.FileHeader) (string, er
 	)
 
 	return url, nil
+}
+
+func DeleteCDNFile(ctx context.Context, fileURL string) error {
+	// Extract the file key from the full URL
+	baseURL := fmt.Sprintf("https://%s.%s.digitaloceanspaces.com/",
+		os.Getenv("DO_BUCKET_NAME"),
+		os.Getenv("DO_REGION"),
+	)
+
+	fileKey := strings.TrimPrefix(fileURL, baseURL)
+
+	if fileKey == "" {
+		return fmt.Errorf("invalid file URL: key is empty")
+	}
+
+	// Initialize S3 client
+	s3Client, err := initS3(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to init S3 client: %w", err)
+	}
+
+	// Prepare the delete input
+	input := &s3.DeleteObjectInput{
+		Bucket: aws.String(os.Getenv("DO_BUCKET_NAME")),
+		Key:    aws.String(fileKey),
+	}
+
+	// Send the delete request
+	_, err = s3Client.DeleteObject(ctx, input)
+	if err != nil {
+		return fmt.Errorf("failed to delete file: %w", err)
+	}
+
+	return nil
 }

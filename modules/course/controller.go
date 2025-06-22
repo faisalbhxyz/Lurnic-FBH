@@ -4,6 +4,7 @@ import (
 	"context"
 	"dashlearn/utils"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -127,4 +128,84 @@ func (h *CourseHandler) Create(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Course created successfully"})
+}
+
+func (h *CourseHandler) Update(c *gin.Context) {
+	var input CourseDetailsInput
+	var flatInput CreateCourseDetailsInput
+
+	courseID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid course ID"})
+		return
+	}
+
+	if err := c.ShouldBindWith(&flatInput, binding.FormMultipart); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	_ = copier.Copy(&input, &flatInput)
+
+	if chaptersStr := c.PostForm("course_chapters"); chaptersStr != "" {
+		var chapters []CreateCourseChapter
+		if err := json.Unmarshal([]byte(chaptersStr), &chapters); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid course_chapters: " + err.Error()})
+			return
+		}
+		input.CourseChapters = chapters
+	}
+
+	if settingsStr := c.PostForm("general_settings"); settingsStr != "" {
+		var settings CreateGeneralSettings
+		if err := json.Unmarshal([]byte(settingsStr), &settings); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid general_settings: " + err.Error()})
+			return
+		}
+		input.GeneralSettings = settings
+	}
+
+	if instructorsStr := c.PostForm("course_instructors"); instructorsStr != "" {
+		var instructors []int32
+		if err := json.Unmarshal([]byte(instructorsStr), &instructors); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid instructors: " + err.Error()})
+			return
+		}
+		input.Instructors = instructors
+	}
+
+	file, err := c.FormFile("featured_image")
+	if err == nil {
+		url, err := utils.UploadFile(context.Background(), file)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		input.FeaturedImage = &url
+	}
+
+	if output, err := json.MarshalIndent(input, "", "  "); err == nil {
+		fmt.Println("Parsed Input:\n", string(output))
+	}
+
+	if err := h.service.Update(uint(courseID), c.GetUint("tenant_id"), c.GetUint("user_id"), input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Course updated successfully"})
+}
+
+func (h *CourseHandler) Delete(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid course ID"})
+		return
+	}
+
+	if err := h.service.Delete(uint(id), c.GetUint("tenant_id")); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Course deleted successfully"})
 }
