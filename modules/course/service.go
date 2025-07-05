@@ -150,6 +150,7 @@ func (s *courseService) Create(input CourseDetailsInput, tenantID uint, userID u
 				return err
 			}
 
+			// Create lessons
 			for idx, lesson := range chapter.CourseLessons {
 				sourceJSON := utils.JSONB[models.Source]{Data: lesson.Source}
 
@@ -166,6 +167,69 @@ func (s *courseService) Create(input CourseDetailsInput, tenantID uint, userID u
 				}
 
 				if err := tx.Create(&newCourseLesson).Error; err != nil {
+					return err
+				}
+			}
+
+			// course quizes
+			for _, quiz := range chapter.Quizzes {
+				newCourseQuiz := models.CourseQuiz{
+					CourseID:              newCourseDetails.ID,
+					ChapterID:             newCourseChapter.ID,
+					Title:                 quiz.Title,
+					Instructions:          quiz.Instructions,
+					IsPublished:           quiz.IsPublished,
+					RandomizeQuestions:    quiz.RandomizeQuestions,
+					SingleQuizView:        quiz.SingleQuizView,
+					TimeLimit:             quiz.TimeLimit,
+					TimeLimitOption:       quiz.TimeLimitOption,
+					TotalVisibleQuestions: utils.ZeroToNil(quiz.TotalVisibleQuestions),
+					RevealAnswers:         quiz.RevealAnswers,
+					EnableRetry:           quiz.EnableRetry,
+					RetryAttempts:         quiz.RetryAttempts,
+					MinimumPassPercentage: quiz.MinimumPassPercentage,
+				}
+
+				if err := tx.Create(&newCourseQuiz).Error; err != nil {
+					return err
+				}
+
+				for _, question := range quiz.Questions {
+					newQuizQuestion := models.QuizQuestion{
+						QuizID:            newCourseQuiz.ID,
+						Title:             question.Title,
+						Details:           utils.ZeroToNil(question.Details),
+						Media:             utils.ZeroToNil(question.Media),
+						Type:              question.Type,
+						Marks:             question.Marks,
+						AnswerRequired:    question.AnswerRequired,
+						AnswerExplanation: utils.ZeroToNil(question.AnswerExplanation),
+					}
+
+					if err := tx.Create(&newQuizQuestion).Error; err != nil {
+						return err
+					}
+				}
+
+			}
+
+			// course assignments
+			for _, assignment := range chapter.Assignments {
+				newAssignment := models.CourseAssignment{
+					CourseID:         newCourseDetails.ID,
+					ChapterID:        newCourseChapter.ID,
+					Title:            assignment.Title,
+					Instructions:     assignment.Instructions,
+					IsPublished:      assignment.IsPublished,
+					TimeLimit:        assignment.TimeLimit,
+					TimeLimitOption:  assignment.TimeLimitOption,
+					Attachments:      utils.ZeroToNil(assignment.Attachments),
+					FileUploadLimit:  assignment.FileUploadLimit,
+					TotalMarks:       assignment.TotalMarks,
+					MinimumPassMarks: assignment.MinimumPassMarks,
+				}
+
+				if err := tx.Create(&newAssignment).Error; err != nil {
 					return err
 				}
 			}

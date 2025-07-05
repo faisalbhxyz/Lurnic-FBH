@@ -121,6 +121,10 @@ func (h *CourseHandler) Create(c *gin.Context) {
 		input.FeaturedImage = nil
 	}
 
+	// if output, err := json.MarshalIndent(input, "", "  "); err == nil {
+	// 	fmt.Println("Parsed Input:\n", string(output))
+	// }
+
 	// Step 3: Pass the parsed object to the service layer for further processing
 	if err := h.service.Create(input, c.GetUint("tenant_id"), c.GetUint("user_id")); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

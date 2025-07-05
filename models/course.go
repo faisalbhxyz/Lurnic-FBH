@@ -8,7 +8,7 @@ import (
 )
 
 type Visibility string
-type PricingModel string
+type CoursePricingModel string
 type DifficultyLevel string
 type Access string
 
@@ -19,8 +19,8 @@ const (
 )
 
 const (
-	Free PricingModel = "free"
-	Paid PricingModel = "paid"
+	CoursePricingModelFree CoursePricingModel = "free"
+	CoursePricingModelPaid CoursePricingModel = "paid"
 )
 
 const (
@@ -51,7 +51,7 @@ type CourseDetails struct {
 	ScheduleTime    *time.Time               `gorm:"type:time" json:"schedule_time"`
 	FeaturedImage   *string                  `gorm:"column:featured_image" json:"featured_image"`
 	IntroVideo      *utils.JSONB[IntroVideo] `gorm:"type:json;column:intro_video" json:"intro_video"`
-	PricingModel    PricingModel             `gorm:"column:pricing_model;enum('free','paid');default:'free'" json:"pricing_model"`
+	PricingModel    CoursePricingModel       `gorm:"column:pricing_model;enum('free','paid');default:'free'" json:"pricing_model"`
 	RegularPrice    *float32                 `gorm:"column:regular_price;default:0" json:"regular_price"`
 	SalePrice       *float32                 `gorm:"column:sale_price;default:0" json:"sale_price"`
 	ShowCommingSoom *bool                    `gorm:"default:false" json:"show_comming_soom"`
@@ -159,7 +159,7 @@ type CourseDetailsResponse struct {
 	ScheduleTime    *time.Time              `gorm:"type:time" json:"schedule_time"`
 	FeaturedImage   *string                 `gorm:"column:featured_image" json:"featured_image"`
 	IntroVideo      datatypes.JSON          `gorm:"type:json;column:intro_video" json:"intro_video"`
-	PricingModel    PricingModel            `gorm:"column:pricing_model;enum('free','paid');default:'free'" json:"pricing_model"`
+	PricingModel    CoursePricingModel      `gorm:"column:pricing_model;enum('free','paid');default:'free'" json:"pricing_model"`
 	RegularPrice    *float32                `gorm:"column:regular_price;default:0" json:"regular_price"`
 	SalePrice       *float32                `gorm:"column:sale_price;default:0" json:"sale_price"`
 	ShowCommingSoon *bool                   `gorm:"column:show_comming_soom;default:false" json:"show_comming_soon"`
@@ -226,7 +226,7 @@ type CourseDetailsPublicResponse struct {
 	ScheduleTime    *time.Time            `gorm:"type:time" json:"schedule_time"`
 	FeaturedImage   *string               `gorm:"column:featured_image" json:"featured_image"`
 	IntroVideo      datatypes.JSON        `gorm:"type:json;column:intro_video" json:"intro_video"`
-	PricingModel    PricingModel          `gorm:"column:pricing_model;enum('free','paid');default:'free'" json:"pricing_model"`
+	PricingModel    CoursePricingModel    `gorm:"column:pricing_model;enum('free','paid');default:'free'" json:"pricing_model"`
 	RegularPrice    *float32              `gorm:"column:regular_price;default:0" json:"regular_price"`
 	SalePrice       *float32              `gorm:"column:sale_price;default:0" json:"sale_price"`
 	ShowCommingSoom *bool                 `gorm:"default:false" json:"show_comming_soom"`

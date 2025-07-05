@@ -7,6 +7,7 @@ import (
 	"dashlearn/modules/course"
 	"dashlearn/modules/enrollment"
 	"dashlearn/modules/instructor"
+	"dashlearn/modules/order"
 	"dashlearn/modules/student"
 	"dashlearn/modules/user"
 	"dashlearn/utils"
@@ -57,6 +58,7 @@ func main() {
 	course.RegisterCourseRoutes(apiRoutesGroup)
 	enrollment.RegisterEnrollmentRoutes(apiRoutesGroup)
 	banner.RegisterBannerRoutes(apiRoutesGroup)
+	order.RegisterCourseRoutes(apiRoutesGroup)
 
 	// Run the server
 	router.Run(":5000")
