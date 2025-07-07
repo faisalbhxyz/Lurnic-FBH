@@ -80,6 +80,7 @@ type CreateGeneralSettings struct {
 }
 
 type CreateCourseQuizInput struct {
+	ID                    *int64                           `json:"id" form:"id" binding:"omitempty"`
 	Title                 string                           `json:"title" form:"title" binding:"required"`
 	Instructions          string                           `json:"instructions" form:"instructions" binding:"required"`
 	IsPublished           bool                             `json:"is_published" form:"is_published"`
@@ -96,6 +97,7 @@ type CreateCourseQuizInput struct {
 }
 
 type CreateQuizQuestionInput struct {
+	ID                *int64                  `json:"id" form:"id" binding:"omitempty"`
 	Title             string                  `json:"title" form:"title" binding:"required"`
 	Details           *string                 `json:"details" form:"details"`
 	Media             *datatypes.JSON         `json:"media" form:"media"`

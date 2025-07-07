@@ -1,4 +1,4 @@
-package banner
+package response
 
 import "time"
 

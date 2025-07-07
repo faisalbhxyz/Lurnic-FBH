@@ -4,7 +4,6 @@ import (
 	"context"
 	"dashlearn/utils"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -139,10 +138,6 @@ func (h *CourseHandler) Update(c *gin.Context) {
 	var input CourseDetailsInput
 	var flatInput CreateCourseDetailsInput
 
-	if output, err := json.MarshalIndent(input, "", "  "); err == nil {
-		fmt.Println("Parsed Input:\n", string(output))
-	}
-
 	courseID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid course ID"})
@@ -192,9 +187,9 @@ func (h *CourseHandler) Update(c *gin.Context) {
 		input.FeaturedImage = &url
 	}
 
-	if output, err := json.MarshalIndent(input, "", "  "); err == nil {
-		fmt.Println("Parsed Input:\n", string(output))
-	}
+	// if output, err := json.MarshalIndent(input, "", "  "); err == nil {
+	// 	fmt.Println("Parsed Input:\n", string(output))
+	// }
 
 	if err := h.service.Update(uint(courseID), c.GetUint("tenant_id"), c.GetUint("user_id"), input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

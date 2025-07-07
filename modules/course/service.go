@@ -3,6 +3,7 @@ package course
 import (
 	"context"
 	"dashlearn/models"
+	"dashlearn/response"
 	"dashlearn/utils"
 	"errors"
 	"fmt"
@@ -11,13 +12,13 @@ import (
 )
 
 type CourseService interface {
-	GetAll(tenantID uint) ([]CourseDetailsResponse, error)
+	GetAll(tenantID uint) ([]response.CourseDetailsResponse, error)
 	GetAllLite(tenantID uint) ([]struct {
 		ID    uint   `json:"id"`
 		Title string `json:"title"`
 	}, error)
-	GetAllPublic(tenantID uint) ([]CourseDetailsPublicResponse, error)
-	GetByID(tenantID uint, courseID uint) (CourseDetailsResponse, error)
+	GetAllPublic(tenantID uint) ([]response.CourseDetailsPublicResponse, error)
+	GetByID(tenantID uint, courseID uint) (response.CourseDetailsResponse, error)
 	Create(input CourseDetailsInput, tenantID uint, userID uint) error
 	Update(courseID, tenantID, userID uint, input CourseDetailsInput) error
 	Delete(id uint, tenantID uint) error
@@ -33,8 +34,8 @@ func NewCourseService(db *gorm.DB) CourseService {
 	}
 }
 
-func (s *courseService) GetAll(tenantID uint) ([]CourseDetailsResponse, error) {
-	var courses []CourseDetailsResponse
+func (s *courseService) GetAll(tenantID uint) ([]response.CourseDetailsResponse, error) {
+	var courses []response.CourseDetailsResponse
 
 	err := s.db.Where("tenant_id = ?", tenantID).Preload("Author").Preload("Chapters").Preload("Chapters.Lessons").Preload("GeneralSettings").Preload("GeneralSettings.Category").Preload("Instructors").Preload("Instructors.Instructor").Find(&courses).Error
 
@@ -55,16 +56,16 @@ func (s *courseService) GetAllLite(tenantID uint) ([]struct {
 	return courses, err
 }
 
-func (s *courseService) GetAllPublic(tenantID uint) ([]CourseDetailsPublicResponse, error) {
-	var courses []CourseDetailsPublicResponse
+func (s *courseService) GetAllPublic(tenantID uint) ([]response.CourseDetailsPublicResponse, error) {
+	var courses []response.CourseDetailsPublicResponse
 
 	err := s.db.Where("tenant_id = ?", tenantID).Preload("GeneralSettings").Preload("GeneralSettings.Category").Find(&courses).Error
 
 	return courses, err
 }
 
-func (s *courseService) GetByID(tenantID uint, courseID uint) (CourseDetailsResponse, error) {
-	var course CourseDetailsResponse
+func (s *courseService) GetByID(tenantID uint, courseID uint) (response.CourseDetailsResponse, error) {
+	var course response.CourseDetailsResponse
 
 	err := s.db.
 		Where("tenant_id = ? AND id = ?", tenantID, courseID).
@@ -280,7 +281,7 @@ func (s *courseService) Create(input CourseDetailsInput, tenantID uint, userID u
 
 func (s *courseService) Update(courseID, tenantID, userID uint, input CourseDetailsInput) error {
 	// Fetch the existing course
-	var existing models.CourseDetails
+	var existing response.CourseDetailsResponse
 	if err := s.db.Where("id = ? AND tenant_id = ?", courseID, tenantID).First(&existing).Error; err != nil {
 		return err
 	}
@@ -327,18 +328,19 @@ func (s *courseService) Update(courseID, tenantID, userID uint, input CourseDeta
 	}
 
 	// Get existing chapters and lessons from DB
-	var existingChaptersForUpdate []models.CourseChapter
+	var existingChaptersForUpdate []response.CourseChapterResponse
 	s.db.Preload("Lessons").Where("course_id = ?", courseID).Find(&existingChaptersForUpdate)
 
 	// Map of existing lesson IDs for quick lookup
-	existingLessonMap := make(map[uint]models.CourseLesson)
+	existingLessonMap := make(map[uint]response.CourseLessonResponse)
 	for _, chapter := range existingChaptersForUpdate {
 		for _, lesson := range chapter.Lessons {
 			existingLessonMap[lesson.ID] = lesson
 		}
 	}
 
-	existingAssignmentMap := make(map[uint]models.CourseAssignment)
+	// Map of existing assignment IDs for quick lookup
+	existingAssignmentMap := make(map[uint]response.CourseAssignmentResponse)
 	s.db.Preload("Assignments").Where("course_id = ?", courseID).Find(&existingChaptersForUpdate)
 	for _, chapter := range existingChaptersForUpdate {
 		for _, assignment := range chapter.Assignments {
@@ -346,18 +348,36 @@ func (s *courseService) Update(courseID, tenantID, userID uint, input CourseDeta
 		}
 	}
 
+	// Map of existing quiz IDs for quick lookup
+	existingQuizMap := make(map[uint]response.CourseQuizResponse)
+	s.db.Preload("Quizzes").Preload("Quizzes.Questions").Where("course_id = ?", courseID).Find(&existingChaptersForUpdate)
+	for _, chapter := range existingChaptersForUpdate {
+		for _, quiz := range chapter.Quizzes {
+			existingQuizMap[quiz.ID] = quiz
+		}
+	}
+
 	// Maps to track incoming IDs
 	incomingChapterIDs := make(map[uint]bool)
 	incomingLessonIDs := make(map[uint]bool)
 	incomingAssignmentIDs := make(map[uint]bool)
+	incomingQuizIDs := make(map[uint]bool)
+	incomingQuizQuestionIDs := make(map[uint]bool)
 
 	// Fetch all existing chapters and their lessons
-	var existingChapters []models.CourseChapter
-	s.db.Preload("Lessons").Preload("Assignments").Where("course_id = ?", courseID).Find(&existingChapters)
+	var existingChapters []response.CourseChapterResponse
+	s.db.Preload("Lessons").
+		Preload("Assignments").
+		Preload("Quizzes").
+		Preload("Quizzes.Questions").
+		Where("course_id = ?", courseID).
+		Find(&existingChapters)
 
-	chapterMap := make(map[uint]models.CourseChapter)
-	lessonMap := make(map[uint]models.CourseLesson)
-	assignmentMap := make(map[uint]models.CourseAssignment)
+	chapterMap := make(map[uint]response.CourseChapterResponse)
+	lessonMap := make(map[uint]response.CourseLessonResponse)
+	assignmentMap := make(map[uint]response.CourseAssignmentResponse)
+	quizMap := make(map[uint]response.CourseQuizResponse)
+	quizQuestionMap := make(map[uint]response.CourseQuizQuestionsResponse)
 
 	for _, ch := range existingChapters {
 		chapterMap[ch.ID] = ch
@@ -368,6 +388,14 @@ func (s *courseService) Update(courseID, tenantID, userID uint, input CourseDeta
 		// Map existing assignments
 		for _, assignment := range ch.Assignments {
 			assignmentMap[assignment.ID] = assignment
+		}
+		// Map existing quizzes
+		for _, quiz := range ch.Quizzes {
+			quizMap[quiz.ID] = quiz
+			// Map existing quiz questions
+			for _, question := range quiz.Questions {
+				quizQuestionMap[question.ID] = question
+			}
 		}
 	}
 
@@ -476,6 +504,7 @@ func (s *courseService) Update(courseID, tenantID, userID uint, input CourseDeta
 				// Create new assignment
 				newAssignment := models.CourseAssignment{
 					ChapterID:        chapterID,
+					CourseID:         courseID,
 					Title:            assignment.Title,
 					Instructions:     assignment.Instructions,
 					IsPublished:      assignment.IsPublished,
@@ -489,7 +518,112 @@ func (s *courseService) Update(courseID, tenantID, userID uint, input CourseDeta
 				if err := s.db.Create(&newAssignment).Error; err != nil {
 					return err
 				}
-				incomingLessonIDs[newAssignment.ID] = true
+				incomingAssignmentIDs[newAssignment.ID] = true
+			}
+		}
+
+		// Handle quiz inside chapter
+		for _, quiz := range chapter.Quizzes {
+			if quiz.ID != nil && *quiz.ID != 0 {
+				quizID := uint(*quiz.ID)
+				incomingQuizIDs[quizID] = true
+
+				if existingQuiz, found := quizMap[quizID]; found {
+					// Update
+					existingQuiz.Title = quiz.Title
+					existingQuiz.Instructions = quiz.Instructions
+					// existingQuiz.Position = lIdx
+					existingQuiz.IsPublished = quiz.IsPublished
+					existingQuiz.TimeLimit = quiz.TimeLimit
+					existingQuiz.TimeLimitOption = quiz.TimeLimitOption
+					existingQuiz.TotalVisibleQuestions = quiz.TotalVisibleQuestions
+					existingQuiz.RevealAnswers = quiz.RevealAnswers
+					existingQuiz.EnableRetry = quiz.EnableRetry
+					existingQuiz.RetryAttempts = quiz.RetryAttempts
+					existingQuiz.MinimumPassPercentage = quiz.MinimumPassPercentage
+
+					// handle questions of each quiz
+					for _, question := range quiz.Questions {
+						if question.ID != nil && *question.ID != 0 {
+							questionID := uint(*question.ID)
+							incomingQuizQuestionIDs[questionID] = true
+
+							if existingQuestion, found := quizQuestionMap[questionID]; found {
+								// Update
+								existingQuestion.Title = question.Title
+								existingQuestion.Details = question.Details
+								existingQuestion.Marks = question.Marks
+								existingQuestion.AnswerRequired = question.AnswerRequired
+								existingQuestion.AnswerExplanation = question.AnswerExplanation
+								existingQuestion.Type = question.Type
+								// existingQuestion.Media = question.Media
+
+								if err := s.db.Save(&existingQuestion).Error; err != nil {
+									return err
+								}
+							}
+						} else {
+							// Create new question
+							newQuestion := models.QuizQuestion{
+								QuizID:            quizID,
+								Title:             question.Title,
+								Details:           question.Details,
+								Marks:             question.Marks,
+								Type:              question.Type,
+								Media:             nil,
+								AnswerRequired:    question.AnswerRequired,
+								AnswerExplanation: question.AnswerExplanation,
+							}
+							if err := s.db.Create(&newQuestion).Error; err != nil {
+								return err
+							}
+							incomingQuizQuestionIDs[newQuestion.ID] = true
+						}
+					}
+
+					if err := s.db.Save(&existingQuiz).Error; err != nil {
+						return err
+					}
+				}
+			} else {
+				// Create new quiz
+				newQuiz := models.CourseQuiz{
+					ChapterID:             chapterID,
+					Title:                 quiz.Title,
+					Instructions:          quiz.Instructions,
+					IsPublished:           quiz.IsPublished,
+					TimeLimit:             quiz.TimeLimit,
+					TimeLimitOption:       quiz.TimeLimitOption,
+					RandomizeQuestions:    quiz.RandomizeQuestions,
+					SingleQuizView:        quiz.SingleQuizView,
+					TotalVisibleQuestions: quiz.TotalVisibleQuestions,
+					RevealAnswers:         quiz.RevealAnswers,
+					EnableRetry:           quiz.EnableRetry,
+					RetryAttempts:         quiz.RetryAttempts,
+					MinimumPassPercentage: quiz.MinimumPassPercentage,
+				}
+				if err := s.db.Create(&newQuiz).Error; err != nil {
+					return err
+				}
+
+				// create questions
+				for _, question := range quiz.Questions {
+					newQuestion := models.QuizQuestion{
+						QuizID:            newQuiz.ID,
+						Title:             question.Title,
+						Details:           question.Details,
+						Type:              question.Type,
+						Marks:             question.Marks,
+						AnswerRequired:    question.AnswerRequired,
+						AnswerExplanation: question.AnswerExplanation,
+						// Media:     question.Media,
+					}
+					if err := s.db.Create(&newQuestion).Error; err != nil {
+						return err
+					}
+				}
+
+				incomingQuizIDs[newQuiz.ID] = true
 			}
 		}
 	}
@@ -505,6 +639,20 @@ func (s *courseService) Update(courseID, tenantID, userID uint, input CourseDeta
 	for id := range assignmentMap {
 		if !incomingAssignmentIDs[id] {
 			_ = s.db.Where("id = ?", id).Delete(&models.CourseAssignment{})
+		}
+	}
+
+	// Delete removed quizes
+	for id := range quizMap {
+		if !incomingQuizIDs[id] {
+			_ = s.db.Where("id = ?", id).Delete(&models.CourseQuiz{})
+		}
+	}
+
+	// Delete removed questions
+	for id := range quizQuestionMap {
+		if !incomingQuizQuestionIDs[id] {
+			_ = s.db.Where("id = ?", id).Delete(&models.QuizQuestion{})
 		}
 	}
 

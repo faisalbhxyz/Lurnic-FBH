@@ -3,6 +3,7 @@ package banner
 import (
 	"context"
 	"dashlearn/models"
+	"dashlearn/response"
 	"dashlearn/utils"
 	"fmt"
 
@@ -10,8 +11,8 @@ import (
 )
 
 type BannerService interface {
-	GetAll(tenantID uint) ([]BannerResponse, error)
-	GetByID(tenantID uint, id uint64) (*BannerResponse, error)
+	GetAll(tenantID uint) ([]response.BannerResponse, error)
+	GetByID(tenantID uint, id uint64) (*response.BannerResponse, error)
 	Create(input CreateBannerInput, tenantID uint) error
 	Update(id uint64, input UpdateBannerInput, tenantID uint) error
 	Delete(id uint64, tenantID uint) error
@@ -27,14 +28,14 @@ func NewBannerService(db *gorm.DB) BannerService {
 	}
 }
 
-func (s *bannerService) GetAll(tenantID uint) ([]BannerResponse, error) {
-	var banners []BannerResponse
+func (s *bannerService) GetAll(tenantID uint) ([]response.BannerResponse, error) {
+	var banners []response.BannerResponse
 	err := s.db.Where("tenant_id = ?", tenantID).Find(&banners).Error
 	return banners, err
 }
 
-func (s *bannerService) GetByID(tenantID uint, id uint64) (*BannerResponse, error) {
-	var banner BannerResponse
+func (s *bannerService) GetByID(tenantID uint, id uint64) (*response.BannerResponse, error) {
+	var banner response.BannerResponse
 	if err := s.db.Where("id = ? AND tenant_id = ?", id, tenantID).First(&banner).Error; err != nil {
 		return nil, err
 	}
@@ -53,7 +54,7 @@ func (s *bannerService) Create(input CreateBannerInput, tenantID uint) error {
 }
 
 func (s *bannerService) Update(id uint64, input UpdateBannerInput, tenantID uint) error {
-	var banner BannerResponse
+	var banner response.BannerResponse
 
 	if err := s.db.Where("id = ? AND tenant_id = ?", id, tenantID).First(&banner).Error; err != nil {
 		return err

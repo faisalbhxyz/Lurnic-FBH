@@ -2,14 +2,15 @@ package enrollment
 
 import (
 	"dashlearn/models"
+	"dashlearn/response"
 	"errors"
 
 	"gorm.io/gorm"
 )
 
 type EnrollmentService interface {
-	GetAll(tenantID uint) ([]models.EnrollmentResponse, error)
-	GetEnrolledCourses(tenantID uint, studentID uint) ([]models.EnrolledCourseRes, error)
+	GetAll(tenantID uint) ([]response.EnrollmentResponse, error)
+	GetEnrolledCourses(tenantID uint, studentID uint) ([]response.EnrolledCourseRes, error)
 	Create(input models.Enrollment, tenantID uint) error
 	Delete(id uint, tenantID uint) error
 }
@@ -24,8 +25,8 @@ func NewEnrollmentService(db *gorm.DB) EnrollmentService {
 	}
 }
 
-func (s *enrollmentService) GetAll(tenantID uint) ([]models.EnrollmentResponse, error) {
-	var enrollments []models.EnrollmentResponse
+func (s *enrollmentService) GetAll(tenantID uint) ([]response.EnrollmentResponse, error) {
+	var enrollments []response.EnrollmentResponse
 
 	err := s.db.
 		Where("tenant_id = ?", tenantID).
@@ -40,8 +41,8 @@ func (s *enrollmentService) GetAll(tenantID uint) ([]models.EnrollmentResponse, 
 	return enrollments, err
 }
 
-func (s *enrollmentService) GetEnrolledCourses(tenantID uint, studentID uint) ([]models.EnrolledCourseRes, error) {
-	var enrollments []models.EnrolledCourseRes
+func (s *enrollmentService) GetEnrolledCourses(tenantID uint, studentID uint) ([]response.EnrolledCourseRes, error) {
+	var enrollments []response.EnrolledCourseRes
 
 	err := s.db.
 		Where(&models.Enrollment{

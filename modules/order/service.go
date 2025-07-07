@@ -2,14 +2,15 @@ package order
 
 import (
 	"dashlearn/models"
+	"dashlearn/response"
 	"errors"
 
 	"gorm.io/gorm"
 )
 
 type OrderService interface {
-	GetAll(tenantID uint) ([]GetAllOrderResponse, error)
-	Create(input CreateOrderInput, tenantID uint, studentID uint) (CreateOrderResponse, error)
+	GetAll(tenantID uint) ([]response.GetAllOrderResponse, error)
+	Create(input CreateOrderInput, tenantID uint, studentID uint) (response.CreateOrderResponse, error)
 	Delete(tenantID uint, orderID uint) error
 	MarkAsPaid(tenantID uint, orderID uint) error
 }
@@ -24,13 +25,13 @@ func NewOrderService(db *gorm.DB) OrderService {
 	}
 }
 
-func (s *orderService) GetAll(tenantID uint) ([]GetAllOrderResponse, error) {
-	var orders []GetAllOrderResponse
+func (s *orderService) GetAll(tenantID uint) ([]response.GetAllOrderResponse, error) {
+	var orders []response.GetAllOrderResponse
 	err := s.db.Where("tenant_id = ?", tenantID).Preload("Course").Preload("Student").Find(&orders).Error
 	return orders, err
 }
 
-func (s *orderService) Create(input CreateOrderInput, tenantID uint, studentID uint) (CreateOrderResponse, error) {
+func (s *orderService) Create(input CreateOrderInput, tenantID uint, studentID uint) (response.CreateOrderResponse, error) {
 	// check if the course exists
 	var course models.CourseDetails
 	if err := s.db.Where(models.CourseDetails{
@@ -38,9 +39,9 @@ func (s *orderService) Create(input CreateOrderInput, tenantID uint, studentID u
 		TenantID: tenantID,
 	}).First(&course).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return CreateOrderResponse{}, errors.New("course not found")
+			return response.CreateOrderResponse{}, errors.New("course not found")
 		}
-		return CreateOrderResponse{}, err
+		return response.CreateOrderResponse{}, err
 	}
 
 	// Check if an order already exists for the given course and student
@@ -50,10 +51,10 @@ func (s *orderService) Create(input CreateOrderInput, tenantID uint, studentID u
 		StudentID: studentID,
 		TenantID:  tenantID,
 	}).First(&existingOrder).Error; err == nil {
-		return CreateOrderResponse{}, errors.New("an order for this course already exists for this student")
+		return response.CreateOrderResponse{}, errors.New("an order for this course already exists for this student")
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		// some other DB error
-		return CreateOrderResponse{}, err
+		return response.CreateOrderResponse{}, err
 	}
 
 	// next invoice ID
@@ -64,7 +65,7 @@ func (s *orderService) Create(input CreateOrderInput, tenantID uint, studentID u
 		Limit(1).
 		Select("invoice_id").
 		Scan(&nextInvoiceID).Error; err != nil {
-		return CreateOrderResponse{}, err
+		return response.CreateOrderResponse{}, err
 	}
 	nextInvoiceID++
 
@@ -92,11 +93,11 @@ func (s *orderService) Create(input CreateOrderInput, tenantID uint, studentID u
 	}
 
 	if err := s.db.Create(&newOrder).Error; err != nil {
-		return CreateOrderResponse{}, err
+		return response.CreateOrderResponse{}, err
 	}
 
 	// build response
-	orderResponse := CreateOrderResponse{
+	orderResponse := response.CreateOrderResponse{
 		ID:           newOrder.ID,
 		InvoiceID:    newOrder.InvoiceID,
 		CourseID:     newOrder.CourseID,
