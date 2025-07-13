@@ -8,6 +8,7 @@ type CreateInstructorInput struct {
 	Designation *string `json:"designation" form:"designation" binding:"omitempty"`
 	Email       string  `json:"email" form:"email" binding:"required,email"`
 	Password    string  `json:"password" form:"password" binding:"required,min=6"`
+	ImageURL    *string
 }
 
 type UpdateInstructorInput struct {
@@ -16,6 +17,7 @@ type UpdateInstructorInput struct {
 	Phone       *string `json:"phone" form:"phone" binding:"omitempty"`
 	Role        *string `json:"role" form:"role" binding:"omitempty"`
 	Designation *string `json:"designation" form:"designation" binding:"omitempty"`
+	ImageURL    *string
 }
 
 type LoginInstructorInput struct {

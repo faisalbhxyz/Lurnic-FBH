@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -45,7 +46,36 @@ func (h *CourseHandler) GetAllLite(c *gin.Context) {
 
 func (h *CourseHandler) GetAllPublic(c *gin.Context) {
 	tenantID := c.GetUint("tenant_id")
-	courses, err := h.service.GetAllPublic(tenantID)
+	showItemsStr := c.Query("showItems")
+
+	var showItems int
+	var limitApplied bool
+
+	if showItemsStr == "" || strings.ToLower(showItemsStr) == "all" {
+		limitApplied = false
+	} else {
+		if parsed, err := strconv.Atoi(showItemsStr); err == nil && parsed > 0 {
+			showItems = parsed
+			limitApplied = true
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid value for showItems"})
+			return
+		}
+	}
+
+	courses, err := h.service.GetAllPublic(tenantID, limitApplied, showItems)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": courses})
+}
+
+func (h *CourseHandler) GetAllPublicByCategory(c *gin.Context) {
+	tenantID := c.GetUint("tenant_id")
+	categorySlug := c.Param("category")
+
+	courses, err := h.service.GetAllPublicByCategory(tenantID, categorySlug)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -65,6 +95,22 @@ func (h *CourseHandler) GetByID(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Course not found"})
 		return
 	}
+	c.JSON(http.StatusOK, gin.H{"data": course})
+}
+
+func (h *CourseHandler) GetByIDPublic(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid course ID"})
+		return
+	}
+	tenantID := c.GetUint("tenant_id")
+	course, err := h.service.GetByIDPublic(tenantID, uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Course not found"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"data": course})
 }
 

@@ -24,6 +24,7 @@ func RegisterCourseRoutes(rg *gin.RouterGroup) {
 	publicGroup := rg.Group("/course", middleware.GetTenantID())
 	{
 		publicGroup.GET("/", handler.GetAllPublic)
-		publicGroup.GET("/:id", handler.GetByID)
+		publicGroup.GET("/:id", handler.GetByIDPublic)
+		publicGroup.GET("/category/:category", handler.GetAllPublicByCategory)
 	}
 }

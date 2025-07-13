@@ -30,4 +30,9 @@ type CourseQuiz struct {
 	MinimumPassPercentage float32                   `json:"minimum_pass_percentage" gorm:"column:minimum_pass_percentage;default:0"`
 	CreatedAt             time.Time                 `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt             time.Time                 `gorm:"autoUpdateTime" json:"updated_at"`
+	Questions             []QuizQuestion            `gorm:"foreignKey:QuizID;references:ID" json:"questions"`
+}
+
+func (CourseQuiz) TableName() string {
+	return "course_quizzes"
 }

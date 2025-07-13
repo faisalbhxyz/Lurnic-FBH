@@ -2,6 +2,7 @@ package response
 
 import (
 	"dashlearn/internal/models"
+	"dashlearn/internal/utils"
 	"time"
 
 	"gorm.io/datatypes"
@@ -38,25 +39,26 @@ func (CourseDetailsResponse) TableName() string {
 	return "course_details"
 }
 
-// ! COURSES RESPONSE without chapters, instructors'
+// COURSES RESPONSE without chapters, instructors and enrollments
 type CourseDetailsPublicResponse struct {
-	ID              uint                         `gorm:"primaryKey;autoIncrement" json:"id"`
-	Title           string                       `json:"title"`
-	Summary         string                       `gorm:"type:text" json:"summary"`
-	Visibility      models.Visibility            `gorm:"type:enum('public','private','protected');default:'public'" json:"visibility"`
-	IsScheduled     *bool                        `gorm:"default:false" json:"is_scheduled"`
-	ScheduleDate    *time.Time                   `gorm:"type:date" json:"schedule_date"`
-	ScheduleTime    *time.Time                   `gorm:"type:time" json:"schedule_time"`
-	FeaturedImage   *string                      `gorm:"column:featured_image" json:"featured_image"`
-	IntroVideo      datatypes.JSON               `gorm:"type:json;column:intro_video" json:"intro_video"`
-	PricingModel    models.CoursePricingModel    `gorm:"column:pricing_model;enum('free','paid');default:'free'" json:"pricing_model"`
-	RegularPrice    *float32                     `gorm:"column:regular_price;default:0" json:"regular_price"`
-	SalePrice       *float32                     `gorm:"column:sale_price;default:0" json:"sale_price"`
-	ShowCommingSoom *bool                        `gorm:"default:false" json:"show_comming_soom"`
-	Tags            datatypes.JSON               `gorm:"type:json" json:"tags"`
-	GeneralSettings models.CourseGeneralSettings `gorm:"foreignKey:CourseID;references:ID" json:"general_settings"`
-}
-
-func (CourseDetailsPublicResponse) TableName() string {
-	return "course_details"
+	ID              uint                            `json:"id"`
+	Title           string                          `json:"title"`
+	Summary         string                          `json:"summary"`
+	Description     *string                         `json:"description"`
+	Visibility      models.Visibility               `json:"visibility"`
+	IsScheduled     *bool                           `json:"is_scheduled"`
+	ScheduleDate    *time.Time                      `json:"schedule_date"`
+	ScheduleTime    *time.Time                      `json:"schedule_time"`
+	FeaturedImage   *string                         `json:"featured_image"`
+	IntroVideo      *utils.JSONB[models.IntroVideo] `json:"intro_video"`
+	PricingModel    models.CoursePricingModel       `json:"pricing_model"`
+	RegularPrice    *float32                        `json:"regular_price"`
+	SalePrice       *float32                        `json:"sale_price"`
+	ShowCommingSoom *bool                           `json:"show_comming_soom"`
+	Tags            datatypes.JSON                  `json:"tags"`
+	Overview        datatypes.JSON                  `json:"overview"`
+	GeneralSettings CourseGeneralSettingsResponse   `json:"general_settings"`
+	Chapters        []CourseChapterResponse         `json:"course_chapters,omitempty"`
+	Instructors     []CourseInstructorResponse      `json:"course_instructors,omitempty"`
+	Enrollments     []EnrolledCourseRes             `json:"enrollments,omitempty"`
 }

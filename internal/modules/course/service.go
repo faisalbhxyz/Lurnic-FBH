@@ -17,8 +17,10 @@ type CourseService interface {
 		ID    uint   `json:"id"`
 		Title string `json:"title"`
 	}, error)
-	GetAllPublic(tenantID uint) ([]response.CourseDetailsPublicResponse, error)
-	GetByID(tenantID uint, courseID uint) (response.CourseDetailsResponse, error)
+	GetAllPublic(tenantID uint, limitApplied bool, showItems int) ([]response.CourseDetailsPublicResponse, error)
+	GetAllPublicByCategory(tenantID uint, categorySlug string) ([]response.CourseDetailsPublicResponse, error)
+	GetByID(tenantID uint, courseID uint) (models.CourseDetails, error)
+	GetByIDPublic(tenantID uint, courseID uint) (*response.CourseDetailsPublicResponse, error)
 	Create(input CourseDetailsInput, tenantID uint, userID uint) error
 	Update(courseID, tenantID, userID uint, input CourseDetailsInput) error
 	Delete(id uint, tenantID uint) error
@@ -56,16 +58,138 @@ func (s *courseService) GetAllLite(tenantID uint) ([]struct {
 	return courses, err
 }
 
-func (s *courseService) GetAllPublic(tenantID uint) ([]response.CourseDetailsPublicResponse, error) {
-	var courses []response.CourseDetailsPublicResponse
+func (s *courseService) GetAllPublic(tenantID uint, limitApplied bool, showItems int) ([]response.CourseDetailsPublicResponse, error) {
+	var modelCourses []models.CourseDetails
+	var publicResponses []response.CourseDetailsPublicResponse
 
-	err := s.db.Where("tenant_id = ?", tenantID).Preload("GeneralSettings").Preload("GeneralSettings.Category").Find(&courses).Error
+	dbQuery := s.db.
+		Where(models.CourseDetails{
+			TenantID:   tenantID,
+			Visibility: models.Public,
+		}).
+		Preload("GeneralSettings").
+		Preload("GeneralSettings.Category")
 
-	return courses, err
+	if limitApplied {
+		dbQuery = dbQuery.Limit(showItems)
+	}
+
+	err := dbQuery.
+		Find(&modelCourses).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return []response.CourseDetailsPublicResponse{}, nil
+		}
+		return nil, fmt.Errorf("failed to retrieve courses: %w", err)
+	}
+
+	for _, course := range modelCourses {
+		res := response.CourseDetailsPublicResponse{
+			ID:              course.ID,
+			Title:           course.Title,
+			Summary:         course.Summary,
+			Visibility:      course.Visibility,
+			IsScheduled:     course.IsScheduled,
+			ScheduleDate:    course.ScheduleDate,
+			ScheduleTime:    course.ScheduleTime,
+			FeaturedImage:   course.FeaturedImage,
+			IntroVideo:      course.IntroVideo,
+			PricingModel:    course.PricingModel,
+			RegularPrice:    course.RegularPrice,
+			SalePrice:       course.SalePrice,
+			ShowCommingSoom: course.ShowCommingSoom,
+			Tags:            course.Tags,
+			GeneralSettings: response.CourseGeneralSettingsResponse{
+				ID:              course.GeneralSettings.ID,
+				CourseID:        course.GeneralSettings.CourseID,
+				DifficultyLevel: course.GeneralSettings.DifficultyLevel,
+				Language:        course.GeneralSettings.Language,
+				MaximumStudent:  course.GeneralSettings.MaximumStudent,
+				Category: response.CategoryResponse{
+					ID:          course.GeneralSettings.Category.ID,
+					Name:        course.GeneralSettings.Category.Name,
+					Slug:        course.GeneralSettings.Category.Slug,
+					Description: utils.EmptyStringToNil(course.GeneralSettings.Category.Description),
+					Thumbnail:   utils.EmptyStringToNil(course.GeneralSettings.Category.Thumbnail),
+					CreatedAt:   course.GeneralSettings.Category.CreatedAt,
+					UpdatedAt:   course.GeneralSettings.Category.UpdatedAt,
+				},
+				Duration:  course.GeneralSettings.Duration,
+				CreatedAt: course.GeneralSettings.CreatedAt,
+				UpdatedAt: course.GeneralSettings.UpdatedAt,
+			},
+		}
+		publicResponses = append(publicResponses, res)
+	}
+
+	return publicResponses, err
 }
 
-func (s *courseService) GetByID(tenantID uint, courseID uint) (response.CourseDetailsResponse, error) {
-	var course response.CourseDetailsResponse
+func (s *courseService) GetAllPublicByCategory(tenantID uint, categorySlug string) ([]response.CourseDetailsPublicResponse, error) {
+	var modelCourses []models.CourseDetails
+	var publicResponses []response.CourseDetailsPublicResponse
+
+	err := s.db.
+		Joins("JOIN course_general_settings ON course_general_settings.course_id = course_details.id").
+		Joins("JOIN categories ON categories.id = course_general_settings.category_id").
+		Where("course_details.tenant_id = ? AND course_details.visibility = ?", tenantID, models.Public).
+		Where("categories.slug = ?", categorySlug).
+		Preload("GeneralSettings").
+		Preload("GeneralSettings.Category").
+		Find(&modelCourses).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return []response.CourseDetailsPublicResponse{}, nil
+		}
+		return nil, fmt.Errorf("failed to retrieve courses: %w", err)
+	}
+
+	for _, course := range modelCourses {
+		res := response.CourseDetailsPublicResponse{
+			ID:              course.ID,
+			Title:           course.Title,
+			Summary:         course.Summary,
+			Visibility:      course.Visibility,
+			IsScheduled:     course.IsScheduled,
+			ScheduleDate:    course.ScheduleDate,
+			ScheduleTime:    course.ScheduleTime,
+			FeaturedImage:   course.FeaturedImage,
+			IntroVideo:      course.IntroVideo,
+			PricingModel:    course.PricingModel,
+			RegularPrice:    course.RegularPrice,
+			SalePrice:       course.SalePrice,
+			ShowCommingSoom: course.ShowCommingSoom,
+			Tags:            course.Tags,
+			GeneralSettings: response.CourseGeneralSettingsResponse{
+				ID:              course.GeneralSettings.ID,
+				CourseID:        course.GeneralSettings.CourseID,
+				DifficultyLevel: course.GeneralSettings.DifficultyLevel,
+				Language:        course.GeneralSettings.Language,
+				MaximumStudent:  course.GeneralSettings.MaximumStudent,
+				Category: response.CategoryResponse{
+					ID:          course.GeneralSettings.Category.ID,
+					Name:        course.GeneralSettings.Category.Name,
+					Slug:        course.GeneralSettings.Category.Slug,
+					Description: utils.EmptyStringToNil(course.GeneralSettings.Category.Description),
+					Thumbnail:   utils.EmptyStringToNil(course.GeneralSettings.Category.Thumbnail),
+					CreatedAt:   course.GeneralSettings.Category.CreatedAt,
+					UpdatedAt:   course.GeneralSettings.Category.UpdatedAt,
+				},
+				Duration:  course.GeneralSettings.Duration,
+				CreatedAt: course.GeneralSettings.CreatedAt,
+				UpdatedAt: course.GeneralSettings.UpdatedAt,
+			},
+		}
+		publicResponses = append(publicResponses, res)
+	}
+
+	return publicResponses, err
+}
+
+func (s *courseService) GetByID(tenantID uint, courseID uint) (models.CourseDetails, error) {
+	var course models.CourseDetails
 
 	err := s.db.
 		Where("tenant_id = ? AND id = ?", tenantID, courseID).
@@ -83,6 +207,195 @@ func (s *courseService) GetByID(tenantID uint, courseID uint) (response.CourseDe
 		First(&course).Error
 
 	return course, err
+}
+
+func (s *courseService) GetByIDPublic(tenantID uint, courseID uint) (*response.CourseDetailsPublicResponse, error) {
+	var modelCourse models.CourseDetails
+
+	err := s.db.
+		Where("tenant_id = ? AND id = ?", tenantID, courseID).
+		Preload("Author").
+		Preload("Chapters", "access = 'published'").
+		Preload("Chapters.Lessons", "is_published = true").
+		Preload("Chapters.Assignments", "is_published = true").
+		Preload("Chapters.Quizzes", "is_published = true").
+		Preload("Chapters.Quizzes.Questions").
+		Preload("GeneralSettings").
+		Preload("GeneralSettings.Category").
+		Preload("Instructors").
+		Preload("Instructors.Instructor").
+		Preload("Enrollments").
+		First(&modelCourse).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &response.CourseDetailsPublicResponse{}, nil
+		}
+		return nil, fmt.Errorf("failed to retrieve course: %w", err)
+	}
+
+	chapters := make([]response.CourseChapterResponse, len(modelCourse.Chapters))
+	for i, chapter := range modelCourse.Chapters {
+		lessons := make([]response.CourseLessonResponse, len(chapter.Lessons))
+		for j, lesson := range chapter.Lessons {
+			lessons[j] = response.CourseLessonResponse{
+				ID:          lesson.ID,
+				Title:       lesson.Title,
+				Description: lesson.Description,
+				Position:    lesson.Position,
+				CreatedAt:   lesson.CreatedAt,
+				UpdatedAt:   lesson.UpdatedAt,
+				ChapterID:   lesson.ChapterID,
+				LessonType:  lesson.LessonType,
+				SourceType:  lesson.SourceType,
+				Source:      lesson.Source,
+				IsPublic:    lesson.IsPublic,
+				// Resources:   lesson.Resources,
+			}
+		}
+
+		assignments := make([]response.CourseAssignmentResponse, len(chapter.Assignments))
+		for j, assignment := range chapter.Assignments {
+			assignments[j] = response.CourseAssignmentResponse{
+				ID:               assignment.ID,
+				ChapterID:        assignment.ChapterID,
+				CourseID:         assignment.CourseID,
+				Title:            assignment.Title,
+				Instructions:     assignment.Instructions,
+				Attachments:      assignment.Attachments,
+				IsPublished:      assignment.IsPublished,
+				TimeLimit:        assignment.TimeLimit,
+				TimeLimitOption:  assignment.TimeLimitOption,
+				FileUploadLimit:  assignment.FileUploadLimit,
+				TotalMarks:       assignment.TotalMarks,
+				MinimumPassMarks: assignment.MinimumPassMarks,
+				CreatedAt:        assignment.CreatedAt,
+				UpdatedAt:        assignment.UpdatedAt,
+			}
+		}
+
+		quizzes := make([]response.CourseQuizResponse, len(chapter.Quizzes))
+		for j, quiz := range chapter.Quizzes {
+			questions := make([]response.CourseQuizQuestionsResponse, len(quiz.Questions))
+			for k, question := range quiz.Questions {
+				questions[k] = response.CourseQuizQuestionsResponse{
+					ID:                question.ID,
+					QuizID:            question.QuizID,
+					Title:             question.Title,
+					Details:           question.Details,
+					Media:             question.Media,
+					Type:              question.Type,
+					Marks:             question.Marks,
+					AnswerRequired:    question.AnswerRequired,
+					AnswerExplanation: question.AnswerExplanation,
+					CreatedAt:         question.CreatedAt,
+					UpdatedAt:         question.UpdatedAt,
+				}
+			}
+			quizzes[j] = response.CourseQuizResponse{
+				ID:                    quiz.ID,
+				ChapterID:             quiz.ChapterID,
+				CourseID:              quiz.CourseID,
+				Title:                 quiz.Title,
+				Instructions:          quiz.Instructions,
+				IsPublished:           quiz.IsPublished,
+				RandomizeQuestions:    quiz.RandomizeQuestions,
+				SingleQuizView:        quiz.SingleQuizView,
+				TimeLimit:             quiz.TimeLimit,
+				TimeLimitOption:       quiz.TimeLimitOption,
+				TotalVisibleQuestions: quiz.TotalVisibleQuestions,
+				RevealAnswers:         quiz.RevealAnswers,
+				EnableRetry:           quiz.EnableRetry,
+				RetryAttempts:         quiz.RetryAttempts,
+				MinimumPassPercentage: quiz.MinimumPassPercentage,
+				Questions:             questions,
+				CreatedAt:             quiz.CreatedAt,
+				UpdatedAt:             quiz.UpdatedAt,
+			}
+		}
+
+		chapters[i] = response.CourseChapterResponse{
+			ID:          chapter.ID,
+			Title:       chapter.Title,
+			Description: chapter.Description,
+			Position:    chapter.Position,
+			Access:      chapter.Access,
+			CreatedAt:   chapter.CreatedAt,
+			UpdatedAt:   chapter.UpdatedAt,
+			CourseID:    chapter.CourseID,
+			Lessons:     lessons,
+			Assignments: assignments,
+			Quizzes:     quizzes,
+		}
+	}
+
+	instructors := make([]response.CourseInstructorResponse, len(modelCourse.Instructors))
+	for i, instructor := range modelCourse.Instructors {
+		instructors[i] = response.CourseInstructorResponse{
+			ID:           instructor.ID,
+			CourseID:     instructor.CourseID,
+			InstructorID: instructor.InstructorID,
+			Instructor: response.InstructorResponse{
+				ID:        instructor.Instructor.ID,
+				FirstName: instructor.Instructor.FirstName,
+				LastName:  instructor.Instructor.LastName,
+				Email:     instructor.Instructor.Email,
+				Image:     utils.ZeroToNil(instructor.Instructor.Image),
+			},
+		}
+	}
+
+	enrollments := make([]response.EnrolledCourseRes, len(modelCourse.Enrollments))
+	for i, enrollment := range modelCourse.Enrollments {
+		enrollments[i] = response.EnrolledCourseRes{
+			ID:        enrollment.ID,
+			CourseID:  enrollment.CourseID,
+			StudentID: enrollment.StudentID,
+		}
+	}
+
+	res := &response.CourseDetailsPublicResponse{
+		ID:              modelCourse.ID,
+		Title:           modelCourse.Title,
+		Summary:         modelCourse.Summary,
+		Description:     modelCourse.Description,
+		Visibility:      modelCourse.Visibility,
+		IsScheduled:     modelCourse.IsScheduled,
+		ScheduleDate:    modelCourse.ScheduleDate,
+		ScheduleTime:    modelCourse.ScheduleTime,
+		FeaturedImage:   modelCourse.FeaturedImage,
+		IntroVideo:      modelCourse.IntroVideo,
+		PricingModel:    modelCourse.PricingModel,
+		RegularPrice:    modelCourse.RegularPrice,
+		SalePrice:       modelCourse.SalePrice,
+		ShowCommingSoom: modelCourse.ShowCommingSoom,
+		Tags:            modelCourse.Tags,
+		Overview:        modelCourse.Overview,
+		GeneralSettings: response.CourseGeneralSettingsResponse{
+			ID:              modelCourse.GeneralSettings.ID,
+			CourseID:        modelCourse.GeneralSettings.CourseID,
+			DifficultyLevel: modelCourse.GeneralSettings.DifficultyLevel,
+			Language:        modelCourse.GeneralSettings.Language,
+			MaximumStudent:  modelCourse.GeneralSettings.MaximumStudent,
+			Category: response.CategoryResponse{
+				ID:          modelCourse.GeneralSettings.Category.ID,
+				Name:        modelCourse.GeneralSettings.Category.Name,
+				Slug:        modelCourse.GeneralSettings.Category.Slug,
+				Description: utils.EmptyStringToNil(modelCourse.GeneralSettings.Category.Description),
+				Thumbnail:   utils.EmptyStringToNil(modelCourse.GeneralSettings.Category.Thumbnail),
+				CreatedAt:   modelCourse.GeneralSettings.Category.CreatedAt,
+				UpdatedAt:   modelCourse.GeneralSettings.Category.UpdatedAt,
+			},
+			Duration:  modelCourse.GeneralSettings.Duration,
+			CreatedAt: modelCourse.GeneralSettings.CreatedAt,
+			UpdatedAt: modelCourse.GeneralSettings.UpdatedAt,
+		},
+		Chapters:    chapters,
+		Instructors: instructors,
+		Enrollments: enrollments,
+	}
+
+	return res, err
 }
 
 func (s *courseService) Create(input CourseDetailsInput, tenantID uint, userID uint) error {
@@ -281,7 +594,7 @@ func (s *courseService) Create(input CourseDetailsInput, tenantID uint, userID u
 
 func (s *courseService) Update(courseID, tenantID, userID uint, input CourseDetailsInput) error {
 	// Fetch the existing course
-	var existing response.CourseDetailsResponse
+	var existing models.CourseDetails
 	if err := s.db.Where("id = ? AND tenant_id = ?", courseID, tenantID).First(&existing).Error; err != nil {
 		return err
 	}
@@ -328,11 +641,11 @@ func (s *courseService) Update(courseID, tenantID, userID uint, input CourseDeta
 	}
 
 	// Get existing chapters and lessons from DB
-	var existingChaptersForUpdate []response.CourseChapterResponse
+	var existingChaptersForUpdate []models.CourseChapter
 	s.db.Preload("Lessons").Where("course_id = ?", courseID).Find(&existingChaptersForUpdate)
 
 	// Map of existing lesson IDs for quick lookup
-	existingLessonMap := make(map[uint]response.CourseLessonResponse)
+	existingLessonMap := make(map[uint]models.CourseLesson)
 	for _, chapter := range existingChaptersForUpdate {
 		for _, lesson := range chapter.Lessons {
 			existingLessonMap[lesson.ID] = lesson
@@ -340,7 +653,7 @@ func (s *courseService) Update(courseID, tenantID, userID uint, input CourseDeta
 	}
 
 	// Map of existing assignment IDs for quick lookup
-	existingAssignmentMap := make(map[uint]response.CourseAssignmentResponse)
+	existingAssignmentMap := make(map[uint]models.CourseAssignment)
 	s.db.Preload("Assignments").Where("course_id = ?", courseID).Find(&existingChaptersForUpdate)
 	for _, chapter := range existingChaptersForUpdate {
 		for _, assignment := range chapter.Assignments {
@@ -349,7 +662,7 @@ func (s *courseService) Update(courseID, tenantID, userID uint, input CourseDeta
 	}
 
 	// Map of existing quiz IDs for quick lookup
-	existingQuizMap := make(map[uint]response.CourseQuizResponse)
+	existingQuizMap := make(map[uint]models.CourseQuiz)
 	s.db.Preload("Quizzes").Preload("Quizzes.Questions").Where("course_id = ?", courseID).Find(&existingChaptersForUpdate)
 	for _, chapter := range existingChaptersForUpdate {
 		for _, quiz := range chapter.Quizzes {
@@ -365,7 +678,7 @@ func (s *courseService) Update(courseID, tenantID, userID uint, input CourseDeta
 	incomingQuizQuestionIDs := make(map[uint]bool)
 
 	// Fetch all existing chapters and their lessons
-	var existingChapters []response.CourseChapterResponse
+	var existingChapters []models.CourseChapter
 	s.db.Preload("Lessons").
 		Preload("Assignments").
 		Preload("Quizzes").
@@ -373,11 +686,11 @@ func (s *courseService) Update(courseID, tenantID, userID uint, input CourseDeta
 		Where("course_id = ?", courseID).
 		Find(&existingChapters)
 
-	chapterMap := make(map[uint]response.CourseChapterResponse)
-	lessonMap := make(map[uint]response.CourseLessonResponse)
-	assignmentMap := make(map[uint]response.CourseAssignmentResponse)
-	quizMap := make(map[uint]response.CourseQuizResponse)
-	quizQuestionMap := make(map[uint]response.CourseQuizQuestionsResponse)
+	chapterMap := make(map[uint]models.CourseChapter)
+	lessonMap := make(map[uint]models.CourseLesson)
+	assignmentMap := make(map[uint]models.CourseAssignment)
+	quizMap := make(map[uint]models.CourseQuiz)
+	quizQuestionMap := make(map[uint]models.QuizQuestion)
 
 	for _, ch := range existingChapters {
 		chapterMap[ch.ID] = ch

@@ -7,7 +7,7 @@ import (
 )
 
 type JSONB[T any] struct {
-	Data T
+	Data T `json:"data"`
 }
 
 func (j JSONB[T]) Value() (driver.Value, error) {

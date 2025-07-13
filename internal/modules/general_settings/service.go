@@ -5,13 +5,14 @@ import (
 	"dashlearn/internal/models"
 	"dashlearn/internal/response"
 	"dashlearn/internal/utils"
+	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
 )
 
 type GeneralSettingsService interface {
-	GetGeneralSettings(tenantID uint) (response.GeneralSettingsRes, error)
+	GetGeneralSettings(tenantID uint) (*response.GeneralSettingsRes, error)
 	UpdateGeneralSettings(input *CreateOrUpdateGeneralSettingsInput, tenantID uint) error
 }
 
@@ -25,14 +26,17 @@ func NewGeneralSettingsService(db *gorm.DB) GeneralSettingsService {
 	}
 }
 
-func (s *generalsettingsService) GetGeneralSettings(tenantID uint) (response.GeneralSettingsRes, error) {
+func (s *generalsettingsService) GetGeneralSettings(tenantID uint) (*response.GeneralSettingsRes, error) {
 	var res response.GeneralSettingsRes
 	if err := s.db.Model(&models.GeneralSettings{}).
 		Where("tenant_id = ?", tenantID).
 		First(&res).Error; err != nil {
-		return response.GeneralSettingsRes{}, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
 	}
-	return res, nil
+	return &res, nil
 }
 
 func (s *generalsettingsService) UpdateGeneralSettings(input *CreateOrUpdateGeneralSettingsInput, tenantID uint) error {

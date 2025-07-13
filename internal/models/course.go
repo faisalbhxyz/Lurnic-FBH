@@ -66,6 +66,7 @@ type CourseDetails struct {
 	Chapters        []CourseChapter          `gorm:"foreignKey:CourseID;references:ID" json:"course_chapters"`
 	GeneralSettings CourseGeneralSettings    `gorm:"foreignKey:CourseID;references:ID" json:"general_settings"`
 	Instructors     []CourseInstructor       `gorm:"foreignKey:CourseID;references:ID" json:"course_instructors"`
+	Enrollments     []Enrollment             `gorm:"foreignKey:CourseID;references:ID" json:"enrollments"`
 }
 
 type CourseChapter struct {

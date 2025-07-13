@@ -5,7 +5,7 @@ import "time"
 type Category struct {
 	ID          uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name        string    `json:"name"`
-	Slug        string    `json:"slug"`
+	Slug        string    `gorm:"column:slug" json:"slug"`
 	Description *string   `gorm:"type:text" json:"description"`
 	Thumbnail   *string   `json:"thumbnail"`
 	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`

@@ -2,45 +2,68 @@ package instructor
 
 import (
 	"context"
-	"dashlearn/internal/models"
 	"dashlearn/internal/utils"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
-	"github.com/lucsky/cuid"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
-func GetInstructors(c *gin.Context) {
-	var users []models.Instructor
-	utils.DB.Where("tenant_id = ?", c.GetUint("tenant_id")).Find(&users)
+type InstructorHandler struct {
+	service InstructorService
+}
+
+func NewInstructorHandler(db *gorm.DB) *InstructorHandler {
+	return &InstructorHandler{
+		service: NewInstructorService(db),
+	}
+}
+
+func (h *InstructorHandler) GetInstructors(c *gin.Context) {
+	users, err := h.service.GetInstructors(c.GetUint("tenant_id"))
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"data": users})
 }
 
-func GetInstructorsLite(c *gin.Context) {
-	var users []models.InstructorResponseLite
-	utils.DB.Where("tenant_id = ?", c.GetUint("tenant_id")).Find(&users)
+func (h *InstructorHandler) GetInstructorsLite(c *gin.Context) {
+
+	users, err := h.service.GetInstructorsLite(c.GetUint("tenant_id"))
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"data": users})
 }
 
-func GetInstructorDetails(c *gin.Context) {
+func (h *InstructorHandler) GetInstructorDetails(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid student ID"})
 		return
 	}
-	var user models.InstructorDetailsResponse
-	utils.DB.Where("tenant_id = ? AND id = ?", c.GetUint("tenant_id"), id).First(&user)
-	c.JSON(http.StatusOK, gin.H{"data": user})
+
+	res, err := h.service.GetInstructorDetails(c.GetUint("tenant_id"), uint(id))
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": res})
 }
 
-func CreateInstructor(c *gin.Context) {
+func (h *InstructorHandler) CreateInstructor(c *gin.Context) {
 	var input CreateInstructorInput
 	if err := c.ShouldBindWith(&input, binding.FormMultipart); err != nil {
 		var validationErrors validator.ValidationErrors
@@ -78,7 +101,6 @@ func CreateInstructor(c *gin.Context) {
 		return
 	}
 
-	var imageURL *string
 	file, err := c.FormFile("image")
 	if err == nil {
 		if file.Size > 2*1024*1024 {
@@ -141,41 +163,12 @@ func CreateInstructor(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		imageURL = &url
+		input.ImageURL = &url
 	} else {
-		imageURL = nil
+		input.ImageURL = nil
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
-		return
-	}
-
-	var existingUser models.Instructor
-	if err := utils.DB.Where("email = ?", input.Email).First(&existingUser).Error; err == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Email already exists"})
-		return
-	} else if err != gorm.ErrRecordNotFound {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong. Please try again."})
-		return
-	}
-
-	newUser := models.Instructor{
-		UserID:      cuid.New(),
-		FirstName:   input.FirstName,
-		LastName:    utils.EmptyStringToNil(input.LastName),
-		Phone:       utils.EmptyStringToNil(input.Phone),
-		Role:        utils.EmptyStringToNil(input.Role),
-		Designation: utils.EmptyStringToNil(input.Designation),
-		Image:       imageURL,
-		Email:       input.Email,
-		Password:    string(hashedPassword),
-		Status:      true,
-		TenantID:    c.GetUint("tenant_id"),
-	}
-
-	if err := utils.DB.Create(&newUser).Error; err != nil {
+	if err := h.service.CreateInstructor(input, c.GetUint("tenant_id")); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create instructor"})
 		return
 	}
@@ -250,7 +243,7 @@ func CreateInstructor(c *gin.Context) {
 
 // }
 
-func UpdateInstructor(c *gin.Context) {
+func (h *InstructorHandler) UpdateInstructor(c *gin.Context) {
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -266,22 +259,7 @@ func UpdateInstructor(c *gin.Context) {
 
 	tenantID := c.GetUint("tenant_id")
 
-	var instructor models.Instructor
-	if err := utils.DB.Where("id = ? AND tenant_id = ?", id, tenantID).First(&instructor).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Instructor not found"})
-		return
-	}
-
-	var imageURL *string
 	file, err := c.FormFile("image")
-
-	if file != nil && instructor.Image != nil {
-		if delErr := utils.DeleteCDNFile(context.Background(), *instructor.Image); delErr != nil {
-			// You can log or ignore deletion errors as per your need
-			fmt.Println("Failed to delete old file:", delErr)
-		}
-	}
-
 	if err == nil {
 		if file.Size > 2*1024*1024 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Max image size is 2MB"})
@@ -343,25 +321,21 @@ func UpdateInstructor(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		imageURL = &url
+		input.ImageURL = &url
 	} else {
-		imageURL = nil
+		input.ImageURL = nil
 	}
 
-	updateUser := models.Instructor{
-		FirstName: input.FirstName,
-		LastName:  input.LastName,
-		Phone:     input.Phone,
-		Image:     imageURL,
+	if err := h.service.UpdateInstructor(input, tenantID, uint(id)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
-
-	utils.DB.Model(&instructor).Updates(updateUser)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Instructor updated successfully"})
 
 }
 
-func DeleteInstructor(c *gin.Context) {
+func (h *InstructorHandler) DeleteInstructor(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid student ID"})
@@ -370,20 +344,7 @@ func DeleteInstructor(c *gin.Context) {
 
 	tenantID := c.GetUint("tenant_id")
 
-	var instructor models.Instructor
-	if err := utils.DB.Where("id = ? AND tenant_id = ?", id, tenantID).First(&instructor).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Instructor not found"})
-		return
-	}
-
-	if instructor.Image != nil {
-		if delErr := utils.DeleteCDNFile(context.Background(), *instructor.Image); delErr != nil {
-			// You can log or ignore deletion errors as per your need
-			fmt.Println("Failed to delete old file:", delErr)
-		}
-	}
-
-	if err := utils.DB.Where("id = ? AND tenant_id = ?", id, tenantID).Delete(&models.Instructor{}).Error; err != nil {
+	if err := h.service.DeleteInstructor(tenantID, uint(id)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
