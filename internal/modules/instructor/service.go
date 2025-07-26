@@ -67,7 +67,7 @@ func (s *instructorService) GetInstructorsLite(tenantID uint) ([]response.Instru
 }
 
 func (s *instructorService) GetInstructorDetails(tenantID uint, id uint) (*response.InstructorDetailsResponse, error) {
-	var instructor response.InstructorDetailsResponse
+	var instructor models.Instructor
 
 	if err := s.db.Where("tenant_id = ? AND id = ?", tenantID, id).First(&instructor).Error; err != nil {
 		return nil, err

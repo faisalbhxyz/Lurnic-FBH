@@ -10,6 +10,7 @@ import (
 	"dashlearn/internal/modules/instructor"
 	"dashlearn/internal/modules/order"
 	"dashlearn/internal/modules/student"
+	subcategory "dashlearn/internal/modules/sub_category"
 	"dashlearn/internal/modules/user"
 	"dashlearn/internal/utils"
 	"log"
@@ -18,6 +19,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
+
+var Version = "v1.0.0"
 
 func main() {
 	// Set Gin to release mode
@@ -56,6 +59,7 @@ func main() {
 	instructor.RegisterInstructorRoutes(apiRoutesGroup)
 	student.RegisterStudentRoutes(apiRoutesGroup)
 	category.RegisterCategoryRoutes(apiRoutesGroup)
+	subcategory.RegisterSubCategoryRoutes(apiRoutesGroup)
 	course.RegisterCourseRoutes(apiRoutesGroup)
 	enrollment.RegisterEnrollmentRoutes(apiRoutesGroup)
 	banner.RegisterBannerRoutes(apiRoutesGroup)

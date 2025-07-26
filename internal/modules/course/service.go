@@ -13,7 +13,7 @@ import (
 )
 
 type CourseService interface {
-	GetAll(tenantID uint) ([]response.CourseDetailsResponse, error)
+	GetAll(tenantID uint) ([]models.CourseDetails, error)
 	GetAllLite(tenantID uint) ([]struct {
 		ID    uint   `json:"id"`
 		Title string `json:"title"`
@@ -37,8 +37,8 @@ func NewCourseService(db *gorm.DB) CourseService {
 	}
 }
 
-func (s *courseService) GetAll(tenantID uint) ([]response.CourseDetailsResponse, error) {
-	var courses []response.CourseDetailsResponse
+func (s *courseService) GetAll(tenantID uint) ([]models.CourseDetails, error) {
+	var courses []models.CourseDetails
 
 	err := s.db.Where("tenant_id = ?", tenantID).Preload("Author").Preload("Chapters").Preload("Chapters.Lessons").Preload("GeneralSettings").Preload("GeneralSettings.Category").Preload("Instructors").Preload("Instructors.Instructor").Find(&courses).Error
 
