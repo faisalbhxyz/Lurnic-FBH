@@ -59,6 +59,14 @@ type CreateCourseChapter struct {
 	Assignments   []CreateAssignmentInput `form:"assignments" json:"assignments"`
 }
 
+type LessonResourceInput struct {
+	URL      string `json:"url"`
+	FileName string `json:"file_name"`
+	Position int    `json:"position"`
+	MimeType string `json:"mime_type"`
+	Size     int64  `json:"size"`
+}
+
 type CreateCourseLesson struct {
 	ID          *int64                  `json:"id" form:"id" binding:"omitempty"`
 	Title       string                  `json:"title" form:"title" binding:"required"`
@@ -68,7 +76,7 @@ type CreateCourseLesson struct {
 	Source      models.Source           `json:"source" form:"source" binding:"omitempty"`
 	IsPublished bool                    `json:"is_published" form:"is_published" binding:"required"`
 	IsPublic    bool                    `json:"is_public" form:"is_public" binding:"required"`
-	Resources   *[]any                  `json:"resources" form:"resources" binding:"omitempty"`
+	Resources   []LessonResourceInput   `json:"resources"`
 }
 
 type CreateGeneralSettings struct {

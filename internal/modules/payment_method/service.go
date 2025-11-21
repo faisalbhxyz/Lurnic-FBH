@@ -10,11 +10,11 @@ import (
 )
 
 type PaymentMethodService interface {
-	GetAll(tenantID uint) ([]PaymentMethodResponse, error)
+	GetAll(tenantID uint, payment_status *bool) ([]PaymentMethodResponse, error)
 	GetByID(tenantID uint, id uint64) (*PaymentMethodResponse, error)
 	Create(input CreatePaymentMethodInput, tenantID uint) error
-	Update(id uint64, input CreatePaymentMethodInput, tenantID uint) error
-	Delete(id uint64, tenantID uint) error
+	Update(id uint, input UpdatePaymentMethodInput, tenantID uint) error
+	Delete(id uint, tenantID uint) error
 }
 
 type paymentMethodService struct {
@@ -27,11 +27,17 @@ func NewPaymentMethodService(db *gorm.DB) PaymentMethodService {
 	}
 }
 
-func (s *paymentMethodService) GetAll(tenantID uint) ([]PaymentMethodResponse, error) {
+func (s *paymentMethodService) GetAll(tenantID uint, payment_status *bool) ([]PaymentMethodResponse, error) {
 	var payments []models.PaymentMethod
 	var res []PaymentMethodResponse
+	var err error
 
-	err := s.db.Where("tenant_id = ?", tenantID).Find(&payments).Error
+	if payment_status != nil {
+		err = s.db.Where("tenant_id = ? AND status = ?", tenantID, *payment_status).Find(&payments).Error
+	} else {
+		err = s.db.Where("tenant_id = ?", tenantID).Find(&payments).Error
+	}
+
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
@@ -42,6 +48,7 @@ func (s *paymentMethodService) GetAll(tenantID uint) ([]PaymentMethodResponse, e
 			Title:       payment.Title,
 			Image:       payment.Image,
 			Instruction: payment.Instruction,
+			Status:      payment.Status,
 			CreatedAt:   payment.CreatedAt,
 			UpdatedAt:   payment.UpdatedAt,
 		})
@@ -63,6 +70,7 @@ func (s *paymentMethodService) GetByID(tenantID uint, id uint64) (*PaymentMethod
 		Title:       payment.Title,
 		Image:       payment.Image,
 		Instruction: payment.Instruction,
+		Status:      payment.Status,
 		CreatedAt:   payment.CreatedAt,
 		UpdatedAt:   payment.UpdatedAt,
 	}
@@ -85,25 +93,42 @@ func (s *paymentMethodService) Create(input CreatePaymentMethodInput, tenantID u
 	return s.db.Create(&method).Error
 }
 
-func (s *paymentMethodService) Update(id uint64, input CreatePaymentMethodInput, tenantID uint) error {
-	var category models.Category
+func (s *paymentMethodService) Update(id uint, input UpdatePaymentMethodInput, tenantID uint) error {
+	var payment models.PaymentMethod
 
-	if err := s.db.Where("id = ? AND tenant_id = ?", id, tenantID).First(&category).Error; err != nil {
+	// 1. Find the payment method under the correct tenant
+	if err := s.db.Where("id = ? AND tenant_id = ?", id, tenantID).First(&payment).Error; err != nil {
 		return err
 	}
 
-	// if s.db.Where("slug = ? AND tenant_id = ? AND id != ?", input.Slug, tenantID, id).First(&models.Category{}).RowsAffected > 0 {
-	// 	return errors.New("category with this slug already exists")
-	// }
+	// 2. Check uniqueness of title (except current)
+	var existing models.PaymentMethod
+	if err := s.db.
+		Where("title = ? AND tenant_id = ? AND id != ?", input.Title, tenantID, id).
+		First(&existing).Error; err == nil {
+		return errors.New("payment method with this title already exists")
+	}
 
-	// category.Name = input.Name
-	// category.Slug = input.Slug
-	// category.Description = utils.EmptyStringToNil(input.Description)
+	// 3. If new image provided, delete old one
+	if input.Image != nil && *input.Image != "" {
+		if payment.Image != nil && *payment.Image != "" {
+			if delErr := utils.DeleteFromBunny(*payment.Image); delErr != nil {
+				fmt.Println("Failed to delete old file:", delErr)
+			}
+		}
+	}
 
-	return s.db.Save(&category).Error
+	// 4. Update fields
+	payment.Title = input.Title
+	payment.Image = input.Image
+	payment.Status = input.Status == "true"
+	payment.Instruction = input.Instruction
+
+	// 5. Save changes
+	return s.db.Save(&payment).Error
 }
 
-func (s *paymentMethodService) Delete(id uint64, tenantID uint) error {
+func (s *paymentMethodService) Delete(id uint, tenantID uint) error {
 	var payment models.PaymentMethod
 
 	if err := s.db.Where("id = ? AND tenant_id = ?", id, tenantID).First(&payment).Error; err != nil {

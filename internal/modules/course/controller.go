@@ -201,6 +201,55 @@ func (h *CourseHandler) Create(c *gin.Context) {
 	// 	fmt.Println("Parsed Input:\n", string(output))
 	// }
 
+	// insert resources
+	for key, files := range c.Request.MultipartForm.File {
+		if !strings.HasPrefix(key, "resources[") {
+			continue // skip non-resource files
+		}
+
+		var chapterIndex, lessonIndex int
+		_, err := fmt.Sscanf(key, "resources[%d][%d][]", &chapterIndex, &lessonIndex)
+		if err != nil {
+			fmt.Println("Failed to parse key:", key, "error:", err)
+			continue
+		}
+
+		var lessonResources []LessonResourceInput // <-- new slice per lesson
+
+		for pos, fileHeader := range files {
+			file, err := fileHeader.Open()
+			if err != nil {
+				fmt.Println("Error opening file:", err)
+				continue
+			}
+
+			url, err := utils.UploadToBunny(file, fileHeader)
+			buf := make([]byte, 512)
+			file.Read(buf)
+			mimeType := http.DetectContentType(buf)
+
+			defer file.Close()
+
+			if err != nil {
+				fmt.Println("Upload failed:", err)
+				continue
+			}
+
+			lessonResources = append(lessonResources, LessonResourceInput{
+				URL:      url,
+				FileName: fileHeader.Filename,
+				Position: pos,
+				MimeType: mimeType,
+				Size:     fileHeader.Size,
+			})
+
+			fmt.Printf("Uploaded: %s -> %s\n", fileHeader.Filename, url)
+		}
+
+		// Assign **only this lesson’s resources**
+		input.CourseChapters[chapterIndex].CourseLessons[lessonIndex].Resources = lessonResources
+	}
+
 	// Step 3: Pass the parsed object to the service layer for further processing
 	if err := h.service.Create(input, c.GetUint("tenant_id"), c.GetUint("user_id")); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -275,6 +324,55 @@ func (h *CourseHandler) Update(c *gin.Context) {
 	// 	fmt.Println("Parsed Input:\n", string(output))
 	// }
 
+	// insert resources
+	for key, files := range c.Request.MultipartForm.File {
+		if !strings.HasPrefix(key, "resources[") {
+			continue // skip non-resource files
+		}
+
+		var chapterIndex, lessonIndex int
+		_, err := fmt.Sscanf(key, "resources[%d][%d][]", &chapterIndex, &lessonIndex)
+		if err != nil {
+			fmt.Println("Failed to parse key:", key, "error:", err)
+			continue
+		}
+
+		var lessonResources []LessonResourceInput // <-- new slice per lesson
+
+		for pos, fileHeader := range files {
+			file, err := fileHeader.Open()
+			if err != nil {
+				fmt.Println("Error opening file:", err)
+				continue
+			}
+
+			url, err := utils.UploadToBunny(file, fileHeader)
+			buf := make([]byte, 512)
+			file.Read(buf)
+			mimeType := http.DetectContentType(buf)
+
+			defer file.Close()
+
+			if err != nil {
+				fmt.Println("Upload failed:", err)
+				continue
+			}
+
+			lessonResources = append(lessonResources, LessonResourceInput{
+				URL:      url,
+				FileName: fileHeader.Filename,
+				Position: pos,
+				MimeType: mimeType,
+				Size:     fileHeader.Size,
+			})
+
+			fmt.Printf("Uploaded: %s -> %s\n", fileHeader.Filename, url)
+		}
+
+		// Assign **only this lesson’s resources**
+		input.CourseChapters[chapterIndex].CourseLessons[lessonIndex].Resources = lessonResources
+	}
+
 	if err := h.service.Update(uint(courseID), c.GetUint("tenant_id"), c.GetUint("user_id"), input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -291,6 +389,26 @@ func (h *CourseHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.service.Delete(uint(id), c.GetUint("tenant_id")); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Course deleted successfully"})
+}
+
+func (h *CourseHandler) DeleteLessonResource(c *gin.Context) {
+	course_id, err := strconv.ParseUint(c.Param("course_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid course ID"})
+		return
+	}
+	resource_id, err := strconv.ParseUint(c.Param("resource_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid resource ID"})
+		return
+	}
+
+	if err := h.service.DeleteLessonResource(uint(course_id), uint(resource_id)); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

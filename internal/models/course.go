@@ -120,12 +120,26 @@ type CourseLesson struct {
 	Source      utils.JSONB[Source] `gorm:"type:json" json:"source"`
 	IsPublished bool                `gorm:"default:false" json:"is_published"`
 	IsPublic    bool                `gorm:"default:false" json:"is_public"`
-	Resources   *map[string]string  `gorm:"type:json" json:"resources"` // filename, mimetype, url, size
 	Position    int                 `gorm:"default:0" json:"position"`
 	CreatedAt   time.Time           `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt   time.Time           `gorm:"autoUpdateTime" json:"updated_at"`
 	ChapterID   uint                `gorm:"column:chapter_id" json:"chapter_id"`
+	Resources   []LessonResource    `gorm:"foreignKey:LessonID;references:ID" json:"resources"`
 	// CourseChapter CourseChapter      `gorm:"foreignKey:ChapterID;references:ID" json:"course_chapter"`
+
+}
+
+type LessonResource struct {
+	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	CourseID  uint      `gorm:"column:course_id" json:"course_id"`
+	LessonID  uint      `gorm:"column:lesson_id" json:"lesson_id"`
+	MimeType  string    `gorm:"column:mime_type" json:"mine_type"`
+	Title     string    `json:"title"`
+	FilePath  string    `gorm:"column:file_path" json:"file_path"`
+	Position  int       `json:"position"`
+	FileSize  int64     `gorm:"column:file_size" json:"file_size"`
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 type CourseGeneralSettings struct {

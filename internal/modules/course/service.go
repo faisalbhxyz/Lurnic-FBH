@@ -31,6 +31,7 @@ type CourseService interface {
 	Create(input CourseDetailsInput, tenantID uint, userID uint) error
 	Update(courseID, tenantID, userID uint, input CourseDetailsInput) error
 	Delete(id uint, tenantID uint) error
+	DeleteLessonResource(courseID uint, resourceID uint) error
 }
 
 type courseService struct {
@@ -292,6 +293,7 @@ func (s *courseService) GetByID(tenantID uint, courseID uint) (models.CourseDeta
 		Preload("Author").
 		Preload("Chapters").
 		Preload("Chapters.Lessons").
+		Preload("Chapters.Lessons.Resources").
 		Preload("Chapters.Assignments").
 		Preload("Chapters.Quizzes").
 		Preload("Chapters.Quizzes.Questions").
@@ -313,6 +315,7 @@ func (s *courseService) GetBySlugPublic(tenantID uint, slug string) (*response.C
 		Preload("Author").
 		Preload("Chapters", "access = 'published'").
 		Preload("Chapters.Lessons", "is_published = true").
+		Preload("Chapters.Lessons.Resources").
 		Preload("Chapters.Assignments", "is_published = true").
 		Preload("Chapters.Quizzes", "is_published = true").
 		Preload("Chapters.Quizzes.Questions").
@@ -346,7 +349,7 @@ func (s *courseService) GetBySlugPublic(tenantID uint, slug string) (*response.C
 				SourceType:  lesson.SourceType,
 				Source:      lesson.Source,
 				IsPublic:    lesson.IsPublic,
-				// Resources:   lesson.Resources,
+				Resources:   lesson.Resources,
 			}
 		}
 
@@ -596,6 +599,24 @@ func (s *courseService) Create(input CourseDetailsInput, tenantID uint, userID u
 				if err := tx.Create(&newCourseLesson).Error; err != nil {
 					return err
 				}
+
+				if len(lesson.Resources) > 0 {
+					for _, res := range lesson.Resources {
+						newResource := models.LessonResource{
+							CourseID: newCourseDetails.ID,
+							LessonID: newCourseLesson.ID,
+							MimeType: res.MimeType,
+							Title:    res.FileName,
+							FilePath: res.URL,
+							FileSize: res.Size,
+							Position: res.Position,
+						}
+						if err := tx.Create(&newResource).Error; err != nil {
+							return err
+						}
+					}
+				}
+
 			}
 
 			// course quizes
@@ -881,6 +902,29 @@ func (s *courseService) Update(courseID, tenantID, userID uint, input CourseDeta
 					if err := s.db.Save(&existingLesson).Error; err != nil {
 						return err
 					}
+
+					if len(lesson.Resources) > 0 {
+						for _, res := range lesson.Resources {
+
+							if res.FileName == "" {
+								continue
+							}
+
+							newResource := models.LessonResource{
+								CourseID: courseID,
+								LessonID: existingLesson.ID,
+								MimeType: res.MimeType,
+								Title:    res.FileName,
+								FilePath: res.URL,
+								Position: res.Position,
+								FileSize: res.Size,
+							}
+
+							if err := s.db.Create(&newResource).Error; err != nil {
+								return err
+							}
+						}
+					}
 				}
 			} else {
 				// Create new lesson
@@ -898,6 +942,30 @@ func (s *courseService) Update(courseID, tenantID, userID uint, input CourseDeta
 				if err := s.db.Create(&newLesson).Error; err != nil {
 					return err
 				}
+
+				if len(lesson.Resources) > 0 {
+					for _, res := range lesson.Resources {
+
+						if res.FileName == "" {
+							continue
+						}
+
+						newResource := models.LessonResource{
+							CourseID: courseID,
+							LessonID: newLesson.ID,
+							MimeType: res.MimeType,
+							Title:    res.FileName,
+							FilePath: res.URL,
+							Position: res.Position,
+							FileSize: res.Size,
+						}
+
+						if err := s.db.Create(&newResource).Error; err != nil {
+							return err
+						}
+					}
+				}
+
 				incomingLessonIDs[newLesson.ID] = true
 			}
 		}
@@ -1197,10 +1265,40 @@ func (s *courseService) Delete(id uint, tenantID uint) error {
 		}
 	}
 
+	// check and delete lesson resources
+	var existingLessonsResources []models.LessonResource
+	if err := s.db.Where("course_id = ?", id).Find(&existingLessonsResources).Error; err != nil {
+		return err
+	}
+
+	if len(existingLessonsResources) > 0 {
+		for _, res := range existingLessonsResources {
+			// Delete from Bunny CDN
+			if err := utils.DeleteFromBunny(res.FilePath); err != nil {
+				fmt.Printf("Failed to delete resource from CDN: %v\n", err)
+			}
+		}
+	}
+
 	// Finally delete the course
 	if err := s.db.Where("id = ? AND tenant_id = ?", id, tenantID).Delete(&models.CourseDetails{}).Error; err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (s *courseService) DeleteLessonResource(courseID uint, resourceID uint) error {
+	var existingLessonsResources models.LessonResource
+	if err := s.db.Where("course_id = ? AND id = ?", courseID, resourceID).First(&existingLessonsResources).Error; err != nil {
+		return err
+	}
+
+	// Delete from Bunny CDN
+	if err := utils.DeleteFromBunny(existingLessonsResources.FilePath); err != nil {
+		fmt.Printf("Failed to delete resource from CDN: %v\n", err)
+	}
+
+	return s.db.Where("course_id = ? AND id = ?", courseID, resourceID).Delete(&models.LessonResource{}).Error
+
 }

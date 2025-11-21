@@ -19,6 +19,7 @@ func RegisterCourseRoutes(rg *gin.RouterGroup) {
 		authGroup.GET("/:id", handler.GetByID)
 		authGroup.PUT("/update/:id", handler.Update)
 		authGroup.DELETE("/delete/:id", handler.Delete)
+		authGroup.DELETE("/delete-resource/:course_id/:resource_id", handler.DeleteLessonResource)
 	}
 
 	publicGroup := rg.Group("/course", middleware.GetTenantID())

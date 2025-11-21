@@ -57,6 +57,17 @@ func (s *orderService) Create(input CreateOrderInput, tenantID uint, studentID u
 		return response.CreateOrderResponse{}, err
 	}
 
+	// check if transacrion id exists and not same
+	err := s.db.
+		Where("LOWER(transaction_id) = LOWER(?) AND tenant_id = ?", input.TransactionID, tenantID).
+		First(&existingOrder).Error
+	if err == nil {
+		return response.CreateOrderResponse{}, errors.New("invalid transaction id")
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return response.CreateOrderResponse{}, err
+	}
+
 	// next invoice ID
 	var nextInvoiceID int64
 	if err := s.db.Model(&models.Order{}).

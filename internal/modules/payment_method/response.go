@@ -7,6 +7,7 @@ type PaymentMethodResponse struct {
 	Title       string    `json:"title"`
 	Image       *string   `json:"image"`
 	Instruction string    `json:"instruction"`
+	Status      bool      `json:"status"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
