@@ -415,3 +415,24 @@ func (h *CourseHandler) DeleteLessonResource(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Course deleted successfully"})
 }
+
+func (h *CourseHandler) ReorderCourses(c *gin.Context) {
+	var input ReorderRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid activeID and overID body",
+		})
+		return
+	}
+	// Call service
+	if err := h.service.ReorderCourses(c.GetUint("tenant_id"), input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Courses reordered successfully",
+	})
+}

@@ -128,3 +128,8 @@ type CreateAssignmentInput struct {
 	TotalMarks       float32                          `json:"total_marks" form:"total_marks" binding:"required"`
 	MinimumPassMarks float32                          `json:"minimum_pass_marks" form:"minimum_pass_marks" binding:"required"`
 }
+
+type ReorderRequest struct {
+	ActiveID uint `json:"activeID"`
+	OverID   uint `json:"overID"`
+}

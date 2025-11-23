@@ -6,7 +6,7 @@ CREATE TABLE
         title VARCHAR(255) NOT NULL,
         summary TEXT NOT NULL,
         description TEXT NULL,
-        visibility ENUM ('public', 'private', 'protected') NOT NULL DEFAULT 'public',
+        visibility ENUM ('public', 'private', 'protected') NOT NULL DEFAULT 'private',
         is_scheduled BOOLEAN NOT NULL DEFAULT FALSE,
         schedule_date DATE NULL,
         schedule_time TIME NULL,

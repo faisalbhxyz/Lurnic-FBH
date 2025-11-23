@@ -136,10 +136,12 @@ func (s *instructorService) UpdateInstructor(input UpdateInstructorInput, tenant
 	}
 
 	updateUser := models.Instructor{
-		FirstName: input.FirstName,
-		LastName:  input.LastName,
-		Phone:     input.Phone,
-		Image:     input.ImageURL,
+		Image:       input.ImageURL,
+		FirstName:   input.FirstName,
+		LastName:    utils.EmptyStringToNil(input.LastName),
+		Phone:       utils.EmptyStringToNil(input.Phone),
+		Role:        utils.EmptyStringToNil(input.Role),
+		Designation: utils.EmptyStringToNil(input.Designation),
 	}
 
 	return utils.DB.Model(&instructor).Updates(updateUser).Error

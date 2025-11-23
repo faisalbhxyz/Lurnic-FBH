@@ -32,6 +32,7 @@ type CourseService interface {
 	Update(courseID, tenantID, userID uint, input CourseDetailsInput) error
 	Delete(id uint, tenantID uint) error
 	DeleteLessonResource(courseID uint, resourceID uint) error
+	ReorderCourses(tenantID uint, input ReorderRequest) error
 }
 
 type courseService struct {
@@ -47,7 +48,7 @@ func NewCourseService(db *gorm.DB) CourseService {
 func (s *courseService) GetAll(tenantID uint) ([]models.CourseDetails, error) {
 	var courses []models.CourseDetails
 
-	err := s.db.Where("tenant_id = ?", tenantID).Preload("Author").Preload("Chapters").Preload("Chapters.Lessons").Preload("GeneralSettings").Preload("GeneralSettings.Category").Preload("Instructors").Preload("Instructors.Instructor").Find(&courses).Error
+	err := s.db.Where("tenant_id = ?", tenantID).Preload("Author").Preload("Chapters").Preload("Chapters.Lessons").Preload("GeneralSettings").Preload("GeneralSettings.Category").Preload("Instructors").Preload("Instructors.Instructor").Order("position ASC").Find(&courses).Error
 
 	return courses, err
 }
@@ -61,7 +62,11 @@ func (s *courseService) GetAllLite(tenantID uint) ([]struct {
 		Title string `json:"title"`
 	}
 
-	err := s.db.Table("course_details").Where("tenant_id = ?", tenantID).Select("id", "title", "tenant_id").Find(&courses).Error
+	err := s.db.Table("course_details").
+		Where("tenant_id = ?", tenantID).
+		Select("id", "title", "tenant_id").
+		Order("position ASC").
+		Find(&courses).Error
 
 	return courses, err
 }
@@ -83,6 +88,7 @@ func (s *courseService) SearchCourses(tenantID uint, query string) ([]struct {
 		Where("tenant_id = ?", tenantID).
 		Where("title LIKE ? OR JSON_CONTAINS(tags, JSON_QUOTE(?)) = 1", "%"+query+"%", query).
 		Select("id", "title", "featured_image", "slug").
+		Order("position ASC").
 		Find(&courses).Error
 
 	return courses, err
@@ -98,7 +104,8 @@ func (s *courseService) GetAllPublic(tenantID uint, limitApplied bool, showItems
 			Visibility: models.Public,
 		}).
 		Preload("GeneralSettings").
-		Preload("GeneralSettings.Category")
+		Preload("GeneralSettings.Category").
+		Order("position ASC")
 
 	if limitApplied {
 		dbQuery = dbQuery.Limit(showItems)
@@ -168,6 +175,7 @@ func (s *courseService) GetAllPublicByCategory(tenantID uint, categorySlug strin
 		Where("categories.slug = ?", categorySlug).
 		Preload("GeneralSettings").
 		Preload("GeneralSettings.Category").
+		Order("position ASC").
 		Find(&modelCourses).Error
 
 	if err != nil {
@@ -233,6 +241,7 @@ func (s *courseService) GetAllPublicBySubCategory(tenantID uint, categorySlug st
 		Preload("GeneralSettings").
 		Preload("GeneralSettings.Category").
 		Preload("GeneralSettings.SubCategory").
+		Order("position ASC").
 		Find(&modelCourses).Error
 
 	if err != nil {
@@ -1301,4 +1310,57 @@ func (s *courseService) DeleteLessonResource(courseID uint, resourceID uint) err
 
 	return s.db.Where("course_id = ? AND id = ?", courseID, resourceID).Delete(&models.LessonResource{}).Error
 
+}
+
+func (s *courseService) ReorderCourses(tenantID uint, input ReorderRequest) error {
+	var courses []models.CourseDetails
+
+	// 1. Fetch courses ordered by index for the tenant
+	if err := s.db.
+		Where("tenant_id = ?", tenantID).
+		Select("id, position").
+		Order("position ASC").
+		Find(&courses).Error; err != nil {
+		return err
+	}
+
+	// 2. Find positions of active and over
+	activeIndex := -1
+	overIndex := -1
+
+	for i, course := range courses {
+		if course.ID == input.ActiveID {
+			activeIndex = i
+		}
+		if course.ID == input.OverID {
+			overIndex = i
+		}
+	}
+
+	if activeIndex == -1 || overIndex == -1 {
+		return fmt.Errorf("invalid course IDs")
+	}
+
+	// 3. Move the dragged item in the slice
+	moved := courses[activeIndex]
+	courses = append(courses[:activeIndex], courses[activeIndex+1:]...) // remove old position
+
+	// insert at new position
+	newList := make([]models.CourseDetails, 0, len(courses)+1)
+	newList = append(newList, courses[:overIndex]...)
+	newList = append(newList, moved)
+	newList = append(newList, courses[overIndex:]...)
+
+	courses = newList
+
+	// 4. Update new indexes
+	for i, c := range courses {
+		if err := s.db.Model(&models.CourseDetails{}).
+			Where("id = ?", c.ID).
+			Update("position", i).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
