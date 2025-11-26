@@ -317,6 +317,199 @@ func (s *courseService) GetByID(tenantID uint, courseID uint) (models.CourseDeta
 	return course, err
 }
 
+// func (s *courseService) GetBySlugPublic(tenantID uint, slug string) (*response.CourseDetailsPublicResponse, error) {
+// 	var modelCourse models.CourseDetails
+
+// 	err := s.db.
+// 		Where("tenant_id = ? AND slug = ?", tenantID, slug).
+// 		Preload("Author").
+// 		Preload("Chapters", "access = 'published'").
+// 		Preload("Chapters.Lessons", "is_published = true").
+// 		Preload("Chapters.Lessons.Resources").
+// 		Preload("Chapters.Assignments", "is_published = true").
+// 		Preload("Chapters.Quizzes", "is_published = true").
+// 		Preload("Chapters.Quizzes.Questions").
+// 		Preload("GeneralSettings").
+// 		Preload("GeneralSettings.Category").
+// 		Preload("Instructors").
+// 		Preload("Instructors.Instructor").
+// 		Preload("Enrollments").
+// 		First(&modelCourse).Error
+
+// 	if err != nil {
+// 		if errors.Is(err, gorm.ErrRecordNotFound) {
+// 			return &response.CourseDetailsPublicResponse{}, nil
+// 		}
+// 		return nil, fmt.Errorf("failed to retrieve course: %w", err)
+// 	}
+
+// 	chapters := make([]response.CourseChapterResponse, len(modelCourse.Chapters))
+// 	for i, chapter := range modelCourse.Chapters {
+// 		lessons := make([]response.CourseLessonResponse, len(chapter.Lessons))
+// 		for j, lesson := range chapter.Lessons {
+// 			lessons[j] = response.CourseLessonResponse{
+// 				ID:          lesson.ID,
+// 				Title:       lesson.Title,
+// 				Description: lesson.Description,
+// 				Position:    lesson.Position,
+// 				CreatedAt:   lesson.CreatedAt,
+// 				UpdatedAt:   lesson.UpdatedAt,
+// 				ChapterID:   lesson.ChapterID,
+// 				LessonType:  lesson.LessonType,
+// 				SourceType:  lesson.SourceType,
+// 				Source:      lesson.Source,
+// 				IsPublic:    lesson.IsPublic,
+// 				Resources:   lesson.Resources,
+// 			}
+// 		}
+
+// 		assignments := make([]response.CourseAssignmentResponse, len(chapter.Assignments))
+// 		for j, assignment := range chapter.Assignments {
+// 			assignments[j] = response.CourseAssignmentResponse{
+// 				ID:               assignment.ID,
+// 				ChapterID:        assignment.ChapterID,
+// 				CourseID:         assignment.CourseID,
+// 				Title:            assignment.Title,
+// 				Instructions:     assignment.Instructions,
+// 				Attachments:      assignment.Attachments,
+// 				IsPublished:      assignment.IsPublished,
+// 				TimeLimit:        assignment.TimeLimit,
+// 				TimeLimitOption:  assignment.TimeLimitOption,
+// 				FileUploadLimit:  assignment.FileUploadLimit,
+// 				TotalMarks:       assignment.TotalMarks,
+// 				MinimumPassMarks: assignment.MinimumPassMarks,
+// 				CreatedAt:        assignment.CreatedAt,
+// 				UpdatedAt:        assignment.UpdatedAt,
+// 			}
+// 		}
+
+// 		quizzes := make([]response.CourseQuizResponse, len(chapter.Quizzes))
+// 		for j, quiz := range chapter.Quizzes {
+// 			questions := make([]response.CourseQuizQuestionsResponse, len(quiz.Questions))
+// 			for k, question := range quiz.Questions {
+// 				questions[k] = response.CourseQuizQuestionsResponse{
+// 					ID:                question.ID,
+// 					QuizID:            question.QuizID,
+// 					Title:             question.Title,
+// 					Details:           question.Details,
+// 					Media:             question.Media,
+// 					Type:              question.Type,
+// 					Marks:             question.Marks,
+// 					AnswerRequired:    question.AnswerRequired,
+// 					AnswerExplanation: question.AnswerExplanation,
+// 					CreatedAt:         question.CreatedAt,
+// 					UpdatedAt:         question.UpdatedAt,
+// 				}
+// 			}
+// 			quizzes[j] = response.CourseQuizResponse{
+// 				ID:                    quiz.ID,
+// 				ChapterID:             quiz.ChapterID,
+// 				CourseID:              quiz.CourseID,
+// 				Title:                 quiz.Title,
+// 				Instructions:          quiz.Instructions,
+// 				IsPublished:           quiz.IsPublished,
+// 				RandomizeQuestions:    quiz.RandomizeQuestions,
+// 				SingleQuizView:        quiz.SingleQuizView,
+// 				TimeLimit:             quiz.TimeLimit,
+// 				TimeLimitOption:       quiz.TimeLimitOption,
+// 				TotalVisibleQuestions: quiz.TotalVisibleQuestions,
+// 				RevealAnswers:         quiz.RevealAnswers,
+// 				EnableRetry:           quiz.EnableRetry,
+// 				RetryAttempts:         quiz.RetryAttempts,
+// 				MinimumPassPercentage: quiz.MinimumPassPercentage,
+// 				Questions:             questions,
+// 				CreatedAt:             quiz.CreatedAt,
+// 				UpdatedAt:             quiz.UpdatedAt,
+// 			}
+// 		}
+
+// 		chapters[i] = response.CourseChapterResponse{
+// 			ID:          chapter.ID,
+// 			Title:       chapter.Title,
+// 			Description: chapter.Description,
+// 			Position:    chapter.Position,
+// 			Access:      chapter.Access,
+// 			CreatedAt:   chapter.CreatedAt,
+// 			UpdatedAt:   chapter.UpdatedAt,
+// 			CourseID:    chapter.CourseID,
+// 			Lessons:     lessons,
+// 			Assignments: assignments,
+// 			Quizzes:     quizzes,
+// 		}
+// 	}
+
+// 	instructors := make([]response.CourseInstructorResponse, len(modelCourse.Instructors))
+// 	for i, instructor := range modelCourse.Instructors {
+// 		instructors[i] = response.CourseInstructorResponse{
+// 			ID:           instructor.ID,
+// 			CourseID:     instructor.CourseID,
+// 			InstructorID: instructor.InstructorID,
+// 			Instructor: response.InstructorResponse{
+// 				ID:          instructor.Instructor.ID,
+// 				FirstName:   instructor.Instructor.FirstName,
+// 				LastName:    instructor.Instructor.LastName,
+// 				Email:       instructor.Instructor.Email,
+// 				Image:       utils.ZeroToNil(instructor.Instructor.Image),
+// 				Phone:       instructor.Instructor.Phone,
+// 				Role:        instructor.Instructor.Role,
+// 				Designation: instructor.Instructor.Designation,
+// 			},
+// 		}
+// 	}
+
+// 	enrollments := make([]response.EnrolledCourseRes, len(modelCourse.Enrollments))
+// 	for i, enrollment := range modelCourse.Enrollments {
+// 		enrollments[i] = response.EnrolledCourseRes{
+// 			ID:        enrollment.ID,
+// 			CourseID:  enrollment.CourseID,
+// 			StudentID: enrollment.StudentID,
+// 		}
+// 	}
+
+// 	res := &response.CourseDetailsPublicResponse{
+// 		ID:          modelCourse.ID,
+// 		Title:       modelCourse.Title,
+// 		Summary:     modelCourse.Summary,
+// 		Description: modelCourse.Description,
+// 		Visibility:  modelCourse.Visibility,
+// 		IsScheduled: *modelCourse.IsScheduled,
+// 		// ScheduleDate:    modelCourse.ScheduleDate,
+// 		// ScheduleTime:    modelCourse.ScheduleTime,
+// 		FeaturedImage: modelCourse.FeaturedImage,
+// 		IntroVideo:    modelCourse.IntroVideo,
+// 		PricingModel:  modelCourse.PricingModel,
+// 		RegularPrice:  modelCourse.RegularPrice,
+// 		SalePrice:     modelCourse.SalePrice,
+// 		// ShowCommingSoom: modelCourse.ShowCommingSoom,
+// 		Tags:     modelCourse.Tags,
+// 		Overview: modelCourse.Overview,
+// 		GeneralSettings: &response.CourseGeneralSettingsResponse{
+// 			ID:              modelCourse.GeneralSettings.ID,
+// 			CourseID:        modelCourse.GeneralSettings.CourseID,
+// 			DifficultyLevel: modelCourse.GeneralSettings.DifficultyLevel,
+// 			Language:        modelCourse.GeneralSettings.Language,
+// 			MaximumStudent:  modelCourse.GeneralSettings.MaximumStudent,
+// 			Category: response.CategoryResponse{
+// 				ID:          modelCourse.GeneralSettings.Category.ID,
+// 				Name:        modelCourse.GeneralSettings.Category.Name,
+// 				Slug:        modelCourse.GeneralSettings.Category.Slug,
+// 				Description: utils.EmptyStringToNil(modelCourse.GeneralSettings.Category.Description),
+// 				Thumbnail:   utils.EmptyStringToNil(modelCourse.GeneralSettings.Category.Thumbnail),
+// 				CreatedAt:   modelCourse.GeneralSettings.Category.CreatedAt,
+// 				UpdatedAt:   modelCourse.GeneralSettings.Category.UpdatedAt,
+// 			},
+// 			Duration:  modelCourse.GeneralSettings.Duration,
+// 			CreatedAt: modelCourse.GeneralSettings.CreatedAt,
+// 			UpdatedAt: modelCourse.GeneralSettings.UpdatedAt,
+// 		},
+// 		Chapters:    chapters,
+// 		Instructors: instructors,
+// 		Enrollments: enrollments,
+// 	}
+
+// 	return res, err
+// }
+
 func (s *courseService) GetBySlugPublic(tenantID uint, slug string) (*response.CourseDetailsPublicResponse, error) {
 	var modelCourse models.CourseDetails
 
@@ -343,11 +536,12 @@ func (s *courseService) GetBySlugPublic(tenantID uint, slug string) (*response.C
 		return nil, fmt.Errorf("failed to retrieve course: %w", err)
 	}
 
-	chapters := make([]response.CourseChapterResponse, len(modelCourse.Chapters))
-	for i, chapter := range modelCourse.Chapters {
-		lessons := make([]response.CourseLessonResponse, len(chapter.Lessons))
-		for j, lesson := range chapter.Lessons {
-			lessons[j] = response.CourseLessonResponse{
+	// Build chapters with filtering for empty ones
+	chapters := make([]response.CourseChapterResponse, 0, len(modelCourse.Chapters))
+	for _, chapter := range modelCourse.Chapters {
+		lessons := make([]response.CourseLessonResponse, 0, len(chapter.Lessons))
+		for _, lesson := range chapter.Lessons {
+			lessons = append(lessons, response.CourseLessonResponse{
 				ID:          lesson.ID,
 				Title:       lesson.Title,
 				Description: lesson.Description,
@@ -360,12 +554,12 @@ func (s *courseService) GetBySlugPublic(tenantID uint, slug string) (*response.C
 				Source:      lesson.Source,
 				IsPublic:    lesson.IsPublic,
 				Resources:   lesson.Resources,
-			}
+			})
 		}
 
-		assignments := make([]response.CourseAssignmentResponse, len(chapter.Assignments))
-		for j, assignment := range chapter.Assignments {
-			assignments[j] = response.CourseAssignmentResponse{
+		assignments := make([]response.CourseAssignmentResponse, 0, len(chapter.Assignments))
+		for _, assignment := range chapter.Assignments {
+			assignments = append(assignments, response.CourseAssignmentResponse{
 				ID:               assignment.ID,
 				ChapterID:        assignment.ChapterID,
 				CourseID:         assignment.CourseID,
@@ -380,14 +574,14 @@ func (s *courseService) GetBySlugPublic(tenantID uint, slug string) (*response.C
 				MinimumPassMarks: assignment.MinimumPassMarks,
 				CreatedAt:        assignment.CreatedAt,
 				UpdatedAt:        assignment.UpdatedAt,
-			}
+			})
 		}
 
-		quizzes := make([]response.CourseQuizResponse, len(chapter.Quizzes))
-		for j, quiz := range chapter.Quizzes {
-			questions := make([]response.CourseQuizQuestionsResponse, len(quiz.Questions))
-			for k, question := range quiz.Questions {
-				questions[k] = response.CourseQuizQuestionsResponse{
+		quizzes := make([]response.CourseQuizResponse, 0, len(chapter.Quizzes))
+		for _, quiz := range chapter.Quizzes {
+			questions := make([]response.CourseQuizQuestionsResponse, 0, len(quiz.Questions))
+			for _, question := range quiz.Questions {
+				questions = append(questions, response.CourseQuizQuestionsResponse{
 					ID:                question.ID,
 					QuizID:            question.QuizID,
 					Title:             question.Title,
@@ -399,45 +593,53 @@ func (s *courseService) GetBySlugPublic(tenantID uint, slug string) (*response.C
 					AnswerExplanation: question.AnswerExplanation,
 					CreatedAt:         question.CreatedAt,
 					UpdatedAt:         question.UpdatedAt,
-				}
+				})
 			}
-			quizzes[j] = response.CourseQuizResponse{
-				ID:                    quiz.ID,
-				ChapterID:             quiz.ChapterID,
-				CourseID:              quiz.CourseID,
-				Title:                 quiz.Title,
-				Instructions:          quiz.Instructions,
-				IsPublished:           quiz.IsPublished,
-				RandomizeQuestions:    quiz.RandomizeQuestions,
-				SingleQuizView:        quiz.SingleQuizView,
-				TimeLimit:             quiz.TimeLimit,
-				TimeLimitOption:       quiz.TimeLimitOption,
-				TotalVisibleQuestions: quiz.TotalVisibleQuestions,
-				RevealAnswers:         quiz.RevealAnswers,
-				EnableRetry:           quiz.EnableRetry,
-				RetryAttempts:         quiz.RetryAttempts,
-				MinimumPassPercentage: quiz.MinimumPassPercentage,
-				Questions:             questions,
-				CreatedAt:             quiz.CreatedAt,
-				UpdatedAt:             quiz.UpdatedAt,
+
+			// Only include quiz if it has questions or is published
+			if len(questions) > 0 || quiz.IsPublished {
+				quizzes = append(quizzes, response.CourseQuizResponse{
+					ID:                    quiz.ID,
+					ChapterID:             quiz.ChapterID,
+					CourseID:              quiz.CourseID,
+					Title:                 quiz.Title,
+					Instructions:          quiz.Instructions,
+					IsPublished:           quiz.IsPublished,
+					RandomizeQuestions:    quiz.RandomizeQuestions,
+					SingleQuizView:        quiz.SingleQuizView,
+					TimeLimit:             quiz.TimeLimit,
+					TimeLimitOption:       quiz.TimeLimitOption,
+					TotalVisibleQuestions: quiz.TotalVisibleQuestions,
+					RevealAnswers:         quiz.RevealAnswers,
+					EnableRetry:           quiz.EnableRetry,
+					RetryAttempts:         quiz.RetryAttempts,
+					MinimumPassPercentage: quiz.MinimumPassPercentage,
+					Questions:             questions,
+					CreatedAt:             quiz.CreatedAt,
+					UpdatedAt:             quiz.UpdatedAt,
+				})
 			}
 		}
 
-		chapters[i] = response.CourseChapterResponse{
-			ID:          chapter.ID,
-			Title:       chapter.Title,
-			Description: chapter.Description,
-			Position:    chapter.Position,
-			Access:      chapter.Access,
-			CreatedAt:   chapter.CreatedAt,
-			UpdatedAt:   chapter.UpdatedAt,
-			CourseID:    chapter.CourseID,
-			Lessons:     lessons,
-			Assignments: assignments,
-			Quizzes:     quizzes,
+		// Only include chapter if it has at least one lesson, assignment, or quiz
+		if len(lessons) > 0 || len(assignments) > 0 || len(quizzes) > 0 {
+			chapters = append(chapters, response.CourseChapterResponse{
+				ID:          chapter.ID,
+				Title:       chapter.Title,
+				Description: chapter.Description,
+				Position:    chapter.Position,
+				Access:      chapter.Access,
+				CreatedAt:   chapter.CreatedAt,
+				UpdatedAt:   chapter.UpdatedAt,
+				CourseID:    chapter.CourseID,
+				Lessons:     lessons,
+				Assignments: assignments,
+				Quizzes:     quizzes,
+			})
 		}
 	}
 
+	// Instructors
 	instructors := make([]response.CourseInstructorResponse, len(modelCourse.Instructors))
 	for i, instructor := range modelCourse.Instructors {
 		instructors[i] = response.CourseInstructorResponse{
@@ -457,6 +659,7 @@ func (s *courseService) GetBySlugPublic(tenantID uint, slug string) (*response.C
 		}
 	}
 
+	// Enrollments
 	enrollments := make([]response.EnrolledCourseRes, len(modelCourse.Enrollments))
 	for i, enrollment := range modelCourse.Enrollments {
 		enrollments[i] = response.EnrolledCourseRes{
@@ -466,23 +669,21 @@ func (s *courseService) GetBySlugPublic(tenantID uint, slug string) (*response.C
 		}
 	}
 
+	// Build final response
 	res := &response.CourseDetailsPublicResponse{
-		ID:          modelCourse.ID,
-		Title:       modelCourse.Title,
-		Summary:     modelCourse.Summary,
-		Description: modelCourse.Description,
-		Visibility:  modelCourse.Visibility,
-		IsScheduled: *modelCourse.IsScheduled,
-		// ScheduleDate:    modelCourse.ScheduleDate,
-		// ScheduleTime:    modelCourse.ScheduleTime,
+		ID:            modelCourse.ID,
+		Title:         modelCourse.Title,
+		Summary:       modelCourse.Summary,
+		Description:   modelCourse.Description,
+		Visibility:    modelCourse.Visibility,
+		IsScheduled:   *modelCourse.IsScheduled,
 		FeaturedImage: modelCourse.FeaturedImage,
 		IntroVideo:    modelCourse.IntroVideo,
 		PricingModel:  modelCourse.PricingModel,
 		RegularPrice:  modelCourse.RegularPrice,
 		SalePrice:     modelCourse.SalePrice,
-		// ShowCommingSoom: modelCourse.ShowCommingSoom,
-		Tags:     modelCourse.Tags,
-		Overview: modelCourse.Overview,
+		Tags:          modelCourse.Tags,
+		Overview:      modelCourse.Overview,
 		GeneralSettings: &response.CourseGeneralSettingsResponse{
 			ID:              modelCourse.GeneralSettings.ID,
 			CourseID:        modelCourse.GeneralSettings.CourseID,
@@ -565,7 +766,7 @@ func (s *courseService) Create(input CourseDetailsInput, tenantID uint, userID u
 		var scheduleTimeForDB *string
 
 		if input.IsScheduled == "true" {
-			dateParsed, err := time.Parse(time.RFC3339, *input.ScheduleDate)
+			dateParsed, err := time.Parse("2006-01-02", *input.ScheduleDate)
 			if err != nil {
 				return errors.New("invalid schedule date format")
 			}
@@ -639,6 +840,28 @@ func (s *courseService) Create(input CourseDetailsInput, tenantID uint, userID u
 			for idx, lesson := range chapter.CourseLessons {
 				sourceJSON := utils.JSONB[models.Source]{Data: lesson.Source}
 
+				var lessonDateForDB *string
+				var lessonTimeForDB *string
+
+				if lesson.IsScheduled && lesson.ScheduleDate != nil && lesson.ScheduleTime != nil {
+
+					// Parse date: "2025-11-27"
+					dateParsed, err := time.Parse("2006-01-02", *lesson.ScheduleDate)
+					if err != nil {
+						return errors.New("invalid schedule date format")
+					}
+					dateStr := dateParsed.Format("2006-01-02") // convert to string
+					lessonDateForDB = &dateStr                 // assign pointer to string
+
+					// Parse time: "08:00 AM"
+					timeParsed, err := time.Parse("03:04 PM", *lesson.ScheduleTime)
+					if err != nil {
+						return errors.New("invalid schedule time format")
+					}
+					timeStr := timeParsed.Format("15:04:05") // convert to 24h format
+					lessonTimeForDB = &timeStr               // assign pointer to string
+				}
+
 				newCourseLesson := models.CourseLesson{
 					ChapterID:   newCourseChapter.ID,
 					Title:       lesson.Title,
@@ -647,8 +870,17 @@ func (s *courseService) Create(input CourseDetailsInput, tenantID uint, userID u
 					LessonType:  lesson.LessonType,
 					SourceType:  lesson.SourceType,
 					Source:      sourceJSON,
-					IsPublished: lesson.IsPublished,
-					IsPublic:    lesson.IsPublic,
+					IsPublished: func() bool {
+						if lesson.IsScheduled && lesson.ScheduleDate != nil && lesson.ScheduleTime != nil {
+							return false
+						}
+						return lesson.IsPublished
+					}(),
+					IsPublic:        lesson.IsPublic,
+					IsScheduled:     &lesson.IsScheduled,
+					ScheduleDate:    lessonDateForDB,
+					ScheduleTime:    lessonTimeForDB,
+					ShowCommingSoon: lesson.ShowCommingSoon,
 				}
 
 				if err := tx.Create(&newCourseLesson).Error; err != nil {
@@ -973,6 +1205,27 @@ func (s *courseService) Update(courseID, tenantID, userID uint, input CourseDeta
 		for lIdx, lesson := range chapter.CourseLessons {
 			sourceJSON := utils.JSONB[models.Source]{Data: lesson.Source}
 
+			var lessonDateForDB *string
+			var lessonTimeForDB *string
+
+			if lesson.IsScheduled && lesson.ScheduleDate != nil && lesson.ScheduleTime != nil {
+				// Parse date: "2025-11-27"
+				dateParsed, err := time.Parse("2006-01-02", *lesson.ScheduleDate)
+				if err != nil {
+					return errors.New("invalid schedule date format")
+				}
+				dateStr := dateParsed.Format("2006-01-02") // convert to string
+				lessonDateForDB = &dateStr                 // assign pointer to string
+
+				// Parse time: "08:00 AM"
+				timeParsed, err := time.Parse("03:04 PM", *lesson.ScheduleTime)
+				if err != nil {
+					return errors.New("invalid schedule time format")
+				}
+				timeStr := timeParsed.Format("15:04:05") // convert to 24h format
+				lessonTimeForDB = &timeStr               // assign pointer to string
+			}
+
 			if lesson.ID != nil && *lesson.ID != 0 {
 				lessonID := uint(*lesson.ID)
 				incomingLessonIDs[lessonID] = true
@@ -985,9 +1238,18 @@ func (s *courseService) Update(courseID, tenantID, userID uint, input CourseDeta
 					existingLesson.LessonType = lesson.LessonType
 					existingLesson.SourceType = lesson.SourceType
 					existingLesson.Source = sourceJSON
-					existingLesson.IsPublished = lesson.IsPublished
+					existingLesson.IsPublished = func() bool {
+						if lesson.IsScheduled && lesson.ScheduleDate != nil && lesson.ScheduleTime != nil {
+							return false
+						}
+						return lesson.IsPublished
+					}()
 					existingLesson.IsPublic = lesson.IsPublic
 					existingLesson.ChapterID = chapterID
+					existingLesson.IsScheduled = &lesson.IsScheduled
+					existingLesson.ScheduleDate = lessonDateForDB
+					existingLesson.ScheduleTime = lessonTimeForDB
+					existingLesson.ShowCommingSoon = lesson.ShowCommingSoon
 
 					if err := s.db.Save(&existingLesson).Error; err != nil {
 						return err
@@ -1026,8 +1288,17 @@ func (s *courseService) Update(courseID, tenantID, userID uint, input CourseDeta
 					LessonType:  lesson.LessonType,
 					SourceType:  lesson.SourceType,
 					Source:      sourceJSON,
-					IsPublished: lesson.IsPublished,
-					IsPublic:    lesson.IsPublic,
+					IsPublished: func() bool {
+						if lesson.IsScheduled && lesson.ScheduleDate != nil && lesson.ScheduleTime != nil {
+							return false
+						}
+						return lesson.IsPublished
+					}(),
+					IsPublic:        lesson.IsPublic,
+					IsScheduled:     &lesson.IsScheduled,
+					ScheduleDate:    lessonDateForDB,
+					ScheduleTime:    lessonTimeForDB,
+					ShowCommingSoon: lesson.ShowCommingSoon,
 				}
 				if err := s.db.Create(&newLesson).Error; err != nil {
 					return err

@@ -14,10 +14,10 @@ type CourseDetailsInput struct {
 	IsScheduled     string                    `form:"is_scheduled" json:"is_scheduled" binding:"omitempty"`
 	ScheduleDate    *string                   `form:"schedule_date" json:"schedule_date" binding:"omitempty"`
 	ScheduleTime    *string                   `form:"schedule_time" json:"schedule_time" binding:"omitempty"`
+	ShowCommingSoon *string                   `form:"show_comming_soon" json:"show_comming_soon" binding:"omitempty"`
 	PricingModel    models.CoursePricingModel `form:"pricing_model" json:"pricing_model" binding:"omitempty"`
 	RegularPrice    *float32                  `form:"regular_price" json:"regular_price" binding:"omitempty"`
 	SalePrice       *float32                  `form:"sale_price" json:"sale_price" binding:"omitempty"`
-	ShowCommingSoon *string                   `form:"show_comming_soon" json:"show_comming_soon" binding:"omitempty"`
 	Tags            *[]string                 `form:"tags" json:"tags" binding:"omitempty"`
 	AuthorID        uint                      `form:"author_id" json:"author_id" binding:"required"`
 	FeaturedImage   *string                   `form:"featured_image" json:"featured_image" binding:"omitempty"`
@@ -67,15 +67,19 @@ type LessonResourceInput struct {
 }
 
 type CreateCourseLesson struct {
-	ID          *int64                  `json:"id" form:"id" binding:"omitempty"`
-	Title       string                  `json:"title" form:"title" binding:"required"`
-	Description *string                 `json:"description" form:"description" binding:"omitempty"`
-	LessonType  models.LessonType       `json:"lesson_type" form:"lesson_type" binding:"required,oneof=video live_session audio text"`
-	SourceType  models.LessonSourceType `json:"source_type" form:"source_type" binding:"required,oneof=youtube vimeo sound_cloud spotify custom_code upload"`
-	Source      models.Source           `json:"source" form:"source" binding:"omitempty"`
-	IsPublished bool                    `json:"is_published" form:"is_published" binding:"required"`
-	IsPublic    bool                    `json:"is_public" form:"is_public" binding:"required"`
-	Resources   []LessonResourceInput   `json:"resources"`
+	ID              *int64                  `json:"id" form:"id" binding:"omitempty"`
+	Title           string                  `json:"title" form:"title" binding:"required"`
+	Description     *string                 `json:"description" form:"description" binding:"omitempty"`
+	LessonType      models.LessonType       `json:"lesson_type" form:"lesson_type" binding:"required,oneof=video live_session audio text"`
+	SourceType      models.LessonSourceType `json:"source_type" form:"source_type" binding:"required,oneof=youtube vimeo sound_cloud spotify custom_code upload"`
+	Source          models.Source           `json:"source" form:"source" binding:"omitempty"`
+	IsPublished     bool                    `json:"is_published" form:"is_published" binding:"required"`
+	IsPublic        bool                    `json:"is_public" form:"is_public" binding:"required"`
+	Resources       []LessonResourceInput   `json:"resources"`
+	IsScheduled     bool                    `form:"is_scheduled" json:"is_scheduled" binding:"omitempty"`
+	ScheduleDate    *string                 `form:"schedule_date" json:"schedule_date" binding:"omitempty"`
+	ScheduleTime    *string                 `form:"schedule_time" json:"schedule_time" binding:"omitempty"`
+	ShowCommingSoon *bool                   `form:"show_comming_soon" json:"show_comming_soon" binding:"omitempty"`
 }
 
 type CreateGeneralSettings struct {

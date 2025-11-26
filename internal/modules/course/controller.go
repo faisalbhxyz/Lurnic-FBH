@@ -204,9 +204,9 @@ func (h *CourseHandler) Create(c *gin.Context) {
 		input.FeaturedImage = nil
 	}
 
-	// if output, err := json.MarshalIndent(input, "", "  "); err == nil {
-	// 	fmt.Println("Parsed Input:\n", string(output))
-	// }
+	if output, err := json.MarshalIndent(input, "", "  "); err == nil {
+		fmt.Println("Parsed Input:\n", string(output))
+	}
 
 	// insert resources
 	for key, files := range c.Request.MultipartForm.File {

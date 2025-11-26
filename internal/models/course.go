@@ -50,12 +50,12 @@ type CourseDetails struct {
 	IsScheduled     *bool                    `gorm:"column:is_scheduled;default:false" json:"is_scheduled"`
 	ScheduleDate    *string                  `gorm:"type:date" json:"schedule_date"`
 	ScheduleTime    *string                  `gorm:"type:time" json:"schedule_time"`
+	ShowCommingSoon *bool                    `gorm:"default:false" json:"show_comming_soon"`
 	FeaturedImage   *string                  `gorm:"column:featured_image" json:"featured_image"`
 	IntroVideo      *utils.JSONB[IntroVideo] `gorm:"type:json;column:intro_video" json:"intro_video"`
 	PricingModel    CoursePricingModel       `gorm:"column:pricing_model;enum('free','paid');default:'free'" json:"pricing_model"`
 	RegularPrice    *float32                 `gorm:"column:regular_price;default:0" json:"regular_price"`
 	SalePrice       *float32                 `gorm:"column:sale_price;default:0" json:"sale_price"`
-	ShowCommingSoon *bool                    `gorm:"default:false" json:"show_comming_soon"`
 	Tags            datatypes.JSON           `gorm:"type:json" json:"tags"`
 	Overview        datatypes.JSON           `gorm:"type:json" json:"overview"`
 	AuthorID        uint                     `gorm:"column:author_id" json:"author_id"`
@@ -113,19 +113,23 @@ type Source struct {
 }
 
 type CourseLesson struct {
-	ID          uint                `gorm:"primaryKey;autoIncrement" json:"id"`
-	Title       string              `json:"title"`
-	Description *string             `gorm:"type:text" json:"description"`
-	LessonType  LessonType          `gorm:"enum('video','live_session','audio','text');default:'video'" json:"lesson_type"`
-	SourceType  LessonSourceType    `gorm:"enum('youtube','vimeo', 'sound_cloud','spotify','custom_code','upload');default:'youtube'" json:"source_type"`
-	Source      utils.JSONB[Source] `gorm:"type:json" json:"source"`
-	IsPublished bool                `gorm:"default:false" json:"is_published"`
-	IsPublic    bool                `gorm:"default:false" json:"is_public"`
-	Position    int                 `gorm:"default:0" json:"position"`
-	CreatedAt   time.Time           `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt   time.Time           `gorm:"autoUpdateTime" json:"updated_at"`
-	ChapterID   uint                `gorm:"column:chapter_id" json:"chapter_id"`
-	Resources   []LessonResource    `gorm:"foreignKey:LessonID;references:ID" json:"resources"`
+	ID              uint                `gorm:"primaryKey;autoIncrement" json:"id"`
+	Title           string              `json:"title"`
+	Description     *string             `gorm:"type:text" json:"description"`
+	LessonType      LessonType          `gorm:"enum('video','live_session','audio','text');default:'video'" json:"lesson_type"`
+	SourceType      LessonSourceType    `gorm:"enum('youtube','vimeo', 'sound_cloud','spotify','custom_code','upload');default:'youtube'" json:"source_type"`
+	Source          utils.JSONB[Source] `gorm:"type:json" json:"source"`
+	IsPublished     bool                `gorm:"default:false" json:"is_published"`
+	IsPublic        bool                `gorm:"default:false" json:"is_public"`
+	IsScheduled     *bool               `gorm:"column:is_scheduled;default:false" json:"is_scheduled"`
+	ScheduleDate    *string             `gorm:"type:date" json:"schedule_date"`
+	ScheduleTime    *string             `gorm:"type:time" json:"schedule_time"`
+	ShowCommingSoon *bool               `gorm:"default:false" json:"show_comming_soon"`
+	Position        int                 `gorm:"default:0" json:"position"`
+	CreatedAt       time.Time           `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt       time.Time           `gorm:"autoUpdateTime" json:"updated_at"`
+	ChapterID       uint                `gorm:"column:chapter_id" json:"chapter_id"`
+	Resources       []LessonResource    `gorm:"foreignKey:LessonID;references:ID" json:"resources"`
 	// CourseChapter CourseChapter      `gorm:"foreignKey:ChapterID;references:ID" json:"course_chapter"`
 
 }

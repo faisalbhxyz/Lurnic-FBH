@@ -29,7 +29,7 @@ var Version = "v1.0.8"
 
 func main() {
 	// Set Gin to release mode
-	gin.SetMode(gin.ReleaseMode)
+	// gin.SetMode(gin.ReleaseMode)
 
 	// Load environment variables
 	if gin.Mode() != gin.ReleaseMode {
@@ -43,12 +43,15 @@ func main() {
 	// Run the helper every minute
 	c.AddFunc("@every 1m", func() {
 		if err := course.CronJobForCoursesSchedule(utils.DB); err != nil {
-			fmt.Println("⏰ Cron error:", err)
+			fmt.Println("📚 Course Cron error:", err)
+		}
+		if err := course.CronJobForCourseLessonsSchedule(utils.DB); err != nil {
+			fmt.Println("🧾 Lesson Cron error:", err)
 		}
 	})
 
 	c.Start()
-	fmt.Println("⌛ Cron started for scheduled courses (Bangladesh time GMT+6)")
+	fmt.Println("⌛ Cron started for scheduled courses and lessons (Bangladesh time GMT+6)")
 
 	// Initialize Gin
 	router := gin.Default()
