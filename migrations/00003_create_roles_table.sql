@@ -1,6 +1,6 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE
+CREATE TABLE IF NOT EXISTS
     roles (
         id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
@@ -13,7 +13,11 @@ CREATE TABLE
 -- +goose StatementEnd
 -- +goose StatementBegin
 ALTER TABLE users
-ADD COLUMN role_id INT UNSIGNED NOT NULL,
+ADD COLUMN IF NOT EXISTS role_id INT UNSIGNED NOT NULL;
+
+-- +goose StatementEnd
+-- +goose StatementBegin
+ALTER TABLE users
 ADD CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles (id) ON DELETE RESTRICT;
 
 -- +goose StatementEnd

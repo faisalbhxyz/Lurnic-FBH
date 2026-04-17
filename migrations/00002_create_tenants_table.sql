@@ -1,6 +1,6 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE
+CREATE TABLE IF NOT EXISTS
     tenants (
         id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         app_key VARCHAR(255) UNIQUE NOT NULL,
@@ -11,7 +11,11 @@ CREATE TABLE
 -- +goose StatementEnd
 -- +goose StatementBegin
 ALTER TABLE users
-ADD COLUMN tenant_id INT UNSIGNED NOT NULL,
+ADD COLUMN IF NOT EXISTS tenant_id INT UNSIGNED NOT NULL;
+
+-- +goose StatementEnd
+-- +goose StatementBegin
+ALTER TABLE users
 ADD CONSTRAINT fk_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE;
 
 -- +goose StatementEnd

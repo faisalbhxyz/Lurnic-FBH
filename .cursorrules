@@ -6,3 +6,9 @@
 ## Never read or print secrets (.env, credentials)
 - Do not read `.env`, `.env.*`, or any file that may contain secrets (keys/tokens/passwords) in chat output. Validate required env vars by checking presence/emptiness via code or targeted non-secret config files (like `.env.example`) instead.
 
+## Secret hygiene: never patch `.env` in-agent
+- Do not use file edits to write secrets into `.env` (patch diffs/tool inputs can leak). Prefer passing secrets via one-off process env vars when testing locally, and only document placeholders in `.env.example`.
+
+## TiDB/MySQL DDL compatibility
+- Avoid combining `ADD COLUMN` + `ADD CONSTRAINT` in a single `ALTER TABLE` statement. Split into separate `ALTER TABLE` statements to prevent TiDB DDL ordering/compat errors during migrations.
+

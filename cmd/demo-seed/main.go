@@ -23,34 +23,49 @@ func main() {
 	}
 
 	tenantID := envUint("DEMO_TENANT_ID", 1)
+	count := envUint("DEMO_COUNT", 5)
 
 	author, err := findAuthor(tenantID)
 	if err != nil {
 		log.Fatalf("failed to find author user for demo seed: %v", err)
 	}
 
-	category := ensureCategory(tenantID)
-	subCategory := ensureSubCategory(tenantID, category.ID)
-	instructor := ensureInstructor(tenantID)
-	course := ensureCourse(tenantID, author.ID)
-	ensureCourseGeneralSettings(tenantID, course.ID, category.ID, &subCategory.ID)
-	ensureCourseInstructor(course.ID, instructor.ID)
+	categories := ensureCategories(tenantID, count)
+	subCategories := ensureSubCategories(tenantID, categories, count)
+	instructors := ensureInstructors(tenantID, count)
+	courses := ensureCourses(tenantID, author.ID, count)
 
-	student := ensureStudent(tenantID)
-	ensureEnrollment(tenantID, student.ID, course.ID)
-	ensureOrder(tenantID, student.ID, course.ID)
+	for i := uint(1); i <= count; i++ {
+		category := categories[i-1]
+		subCategory := subCategories[i-1]
+		instructor := instructors[i-1]
+		course := courses[i-1]
 
-	ensurePaymentMethod(tenantID)
-	ensureBanner(tenantID)
+		ensureCourseGeneralSettings(tenantID, course.ID, category.ID, &subCategory.ID, i)
+		ensureCourseInstructor(course.ID, instructor.ID)
+	}
+
+	students := ensureStudents(tenantID, count)
+	for i := uint(1); i <= count; i++ {
+		student := students[i-1]
+		course := courses[i-1]
+		ensureEnrollment(tenantID, student.ID, course.ID)
+		ensureOrder(tenantID, student.ID, course.ID, i)
+	}
+
+	ensurePaymentMethods(tenantID, count)
+	ensureBanners(tenantID, count)
 	ensureGeneralSettings(tenantID)
 
 	fmt.Println("Demo seed complete.")
 	fmt.Println("Created/ensured demo records for:")
-	fmt.Println("- Category / Sub-category")
-	fmt.Println("- Instructor")
-	fmt.Println("- Course (+ settings + instructor mapping)")
-	fmt.Println("- Student, Enrollment, Order")
-	fmt.Println("- Payment method, Banner, General settings")
+	fmt.Printf("- Categories: %d, Sub-categories: %d\n", count, count)
+	fmt.Printf("- Instructors: %d\n", count)
+	fmt.Printf("- Courses: %d (+ general settings + instructor mapping)\n", count)
+	fmt.Printf("- Students: %d (+ enrollment + order per course)\n", count)
+	fmt.Printf("- Payment methods: %d\n", count)
+	fmt.Printf("- Banners: %d\n", count)
+	fmt.Println("- General settings: 1")
 }
 
 func envUint(key string, def uint) uint {
@@ -80,12 +95,20 @@ func findAuthor(tenantID uint) (*models.User, error) {
 	return &u, err
 }
 
-func ensureCategory(tenantID uint) *models.Category {
+func ensureCategories(tenantID, count uint) []*models.Category {
+	out := make([]*models.Category, 0, count)
+	for i := uint(1); i <= count; i++ {
+		out = append(out, ensureCategory(tenantID, i))
+	}
+	return out
+}
+
+func ensureCategory(tenantID, n uint) *models.Category {
 	desc := "Demo category for local development."
-	thumb := "https://placehold.co/600x400/png?text=Category"
+	thumb := fmt.Sprintf("https://placehold.co/600x400/png?text=Category+%d", n)
 	c := models.Category{
-		Name:        "Demo Category",
-		Slug:        "demo-category",
+		Name:        fmt.Sprintf("Demo Category %d", n),
+		Slug:        fmt.Sprintf("demo-category-%d", n),
 		Description: &desc,
 		Thumbnail:   &thumb,
 		TenantID:    tenantID,
@@ -107,13 +130,21 @@ func ensureCategory(tenantID uint) *models.Category {
 	return &c
 }
 
-func ensureSubCategory(tenantID, categoryID uint) *models.SubCategory {
+func ensureSubCategories(tenantID uint, categories []*models.Category, count uint) []*models.SubCategory {
+	out := make([]*models.SubCategory, 0, count)
+	for i := uint(1); i <= count; i++ {
+		out = append(out, ensureSubCategory(tenantID, categories[i-1].ID, i))
+	}
+	return out
+}
+
+func ensureSubCategory(tenantID, categoryID, n uint) *models.SubCategory {
 	desc := "Demo sub-category for local development."
-	thumb := "https://placehold.co/600x400/png?text=Sub+Category"
+	thumb := fmt.Sprintf("https://placehold.co/600x400/png?text=Sub+Category+%d", n)
 	sc := models.SubCategory{
 		CategoryID:  categoryID,
-		Name:        "Demo Sub Category",
-		Slug:        "demo-sub-category",
+		Name:        fmt.Sprintf("Demo Sub Category %d", n),
+		Slug:        fmt.Sprintf("demo-sub-category-%d", n),
 		Description: &desc,
 		Thumbnail:   &thumb,
 		TenantID:    tenantID,
@@ -135,17 +166,25 @@ func ensureSubCategory(tenantID, categoryID uint) *models.SubCategory {
 	return &sc
 }
 
-func ensureInstructor(tenantID uint) *models.Instructor {
+func ensureInstructors(tenantID, count uint) []*models.Instructor {
+	out := make([]*models.Instructor, 0, count)
+	for i := uint(1); i <= count; i++ {
+		out = append(out, ensureInstructor(tenantID, i))
+	}
+	return out
+}
+
+func ensureInstructor(tenantID, n uint) *models.Instructor {
 	pw, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
 	role := "Instructor"
 	designation := "Senior Instructor"
-	image := "https://placehold.co/256x256/png?text=Instructor"
+	image := fmt.Sprintf("https://placehold.co/256x256/png?text=Instructor+%d", n)
 	ins := models.Instructor{
 		UserID:      cuid.New(),
 		FirstName:   "Demo",
-		LastName:    ptr("Instructor"),
-		Phone:       ptr("+8801000000000"),
-		Email:       "instructor@local.dev",
+		LastName:    ptr(fmt.Sprintf("Instructor %d", n)),
+		Phone:       ptr(fmt.Sprintf("+88010000000%02d", n)),
+		Email:       fmt.Sprintf("instructor+%d@local.dev", n),
 		Password:    string(pw),
 		Status:      true,
 		TenantID:    tenantID,
@@ -173,19 +212,27 @@ func ensureInstructor(tenantID uint) *models.Instructor {
 	return &ins
 }
 
-func ensureCourse(tenantID, authorID uint) *models.CourseDetails {
-	featured := "https://placehold.co/1200x630/png?text=Demo+Course"
+func ensureCourses(tenantID, authorID, count uint) []*models.CourseDetails {
+	out := make([]*models.CourseDetails, 0, count)
+	for i := uint(1); i <= count; i++ {
+		out = append(out, ensureCourse(tenantID, authorID, i))
+	}
+	return out
+}
+
+func ensureCourse(tenantID, authorID, n uint) *models.CourseDetails {
+	featured := fmt.Sprintf("https://placehold.co/1200x630/png?text=Demo+Course+%d", n)
 	c := models.CourseDetails{
-		Title:         "Demo Course: Local Development",
-		Slug:          "demo-course-local-development",
-		Summary:       "A demo course seeded for local testing. Safe to delete anytime.",
-		Description:   ptr("This is demo content created by the demo seeder."),
+		Title:         fmt.Sprintf("Demo Course %d: Local Development", n),
+		Slug:          fmt.Sprintf("demo-course-local-development-%d", n),
+		Summary:       fmt.Sprintf("Demo course %d seeded for local testing. Safe to delete anytime.", n),
+		Description:   ptr(fmt.Sprintf("This is demo content created by the demo seeder (course %d).", n)),
 		Visibility:    models.Public,
 		PricingModel:  models.CoursePricingModelFree,
 		FeaturedImage: &featured,
 		AuthorID:      authorID,
 		TenantID:      tenantID,
-		Position:      1,
+		Position:      int64(n),
 	}
 
 	var existing models.CourseDetails
@@ -197,7 +244,7 @@ func ensureCourse(tenantID, authorID uint) *models.CourseDetails {
 		existing.PricingModel = c.PricingModel
 		existing.FeaturedImage = c.FeaturedImage
 		existing.AuthorID = authorID
-		existing.Position = 1
+		existing.Position = int64(n)
 		_ = utils.DB.Save(&existing).Error
 		return &existing
 	}
@@ -208,9 +255,9 @@ func ensureCourse(tenantID, authorID uint) *models.CourseDetails {
 	return &c
 }
 
-func ensureCourseGeneralSettings(tenantID, courseID, categoryID uint, subCategoryID *uint) {
+func ensureCourseGeneralSettings(tenantID, courseID, categoryID uint, subCategoryID *uint, n uint) {
 	lang := "english"
-	duration := "2h 30m"
+	duration := fmt.Sprintf("%dh %dm", 1+n, 15*n)
 	level := models.Beginner
 	max := int32(0)
 	settings := models.CourseGeneralSettings{
@@ -249,14 +296,22 @@ func ensureCourseInstructor(courseID, instructorID uint) {
 	}
 }
 
-func ensureStudent(tenantID uint) *models.Student {
+func ensureStudents(tenantID, count uint) []*models.Student {
+	out := make([]*models.Student, 0, count)
+	for i := uint(1); i <= count; i++ {
+		out = append(out, ensureStudent(tenantID, i))
+	}
+	return out
+}
+
+func ensureStudent(tenantID, n uint) *models.Student {
 	pw, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
 	st := models.Student{
 		UserID:    cuid.New(),
 		FirstName: "Demo",
-		LastName:  ptr("Student"),
-		Phone:     ptr("+8801999999999"),
-		Email:     "student@local.dev",
+		LastName:  ptr(fmt.Sprintf("Student %d", n)),
+		Phone:     ptr(fmt.Sprintf("+88019999999%02d", n)),
+		Email:     fmt.Sprintf("student+%d@local.dev", n),
 		Password:  string(pw),
 		Status:    true,
 		TenantID:  tenantID,
@@ -288,8 +343,8 @@ func ensureEnrollment(tenantID, studentID, courseID uint) {
 	}
 }
 
-func ensureOrder(tenantID, studentID, courseID uint) {
-	invoiceID := int64(1000001)
+func ensureOrder(tenantID, studentID, courseID uint, n uint) {
+	invoiceID := int64(1000000 + n)
 	var existing models.Order
 	if err := utils.DB.Where("invoice_id = ? AND tenant_id = ?", invoiceID, tenantID).First(&existing).Error; err == nil {
 		return
@@ -311,11 +366,17 @@ func ensureOrder(tenantID, studentID, courseID uint) {
 	}
 }
 
-func ensurePaymentMethod(tenantID uint) {
+func ensurePaymentMethods(tenantID, count uint) {
+	for i := uint(1); i <= count; i++ {
+		ensurePaymentMethod(tenantID, i)
+	}
+}
+
+func ensurePaymentMethod(tenantID, n uint) {
 	pm := models.PaymentMethod{
-		Title:       "Manual Payment (Demo)",
-		Image:       ptr("https://placehold.co/600x300/png?text=Payment"),
-		Instruction: "Use this demo method for local testing. No real payment is processed.",
+		Title:       fmt.Sprintf("Manual Payment (Demo %d)", n),
+		Image:       ptr(fmt.Sprintf("https://placehold.co/600x300/png?text=Payment+%d", n)),
+		Instruction: fmt.Sprintf("Demo payment method %d for local testing. No real payment is processed.", n),
 		Status:      true,
 		TenantID:    tenantID,
 	}
@@ -331,13 +392,20 @@ func ensurePaymentMethod(tenantID uint) {
 	}
 }
 
-func ensureBanner(tenantID uint) {
-	title := "Demo Banner"
+func ensureBanners(tenantID, count uint) {
+	for i := uint(1); i <= count; i++ {
+		ensureBanner(tenantID, i)
+	}
+}
+
+func ensureBanner(tenantID, n uint) {
+	title := fmt.Sprintf("Demo Banner %d", n)
 	url := "https://example.com"
+	image := fmt.Sprintf("https://placehold.co/1600x500/png?text=Demo+Banner+%d", n)
 	b := models.Banner{
 		Title:    &title,
 		Url:      &url,
-		Image:    "https://placehold.co/1600x500/png?text=Demo+Banner",
+		Image:    image,
 		TenantID: tenantID,
 	}
 	var existing models.Banner
