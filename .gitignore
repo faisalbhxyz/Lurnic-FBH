@@ -46,3 +46,4 @@ e2e/playwright-report/
 e2e/.playwright/
 *.zip
 /tmp
+.vercel

@@ -6,6 +6,11 @@
 ## NextAuth session objects can be partially defined
 - Do not assume `session.user` exists even if `session` exists. Always use `session?.user?.<field>` (or explicit guards) in Client Components to prevent `undefined` property crashes in production.
 
+## Vercel + Go (Gin) serverless (Option A)
+- Deploy the monorepo **root** (not `frontend/` alone) when using `/api/*.go` + root `vercel.json` rewrites (`/v1/*` → `/api/gin-handler?path=*`).
+- Do not add a real `main()` in `api/` (Vercel invokes `Handler`); `go build ./api` may fail—CI should `go build .` for the binary and rely on Vercel to compile `api/`.
+- `VERCEL` is set by Vercel: cron is disabled in `internal/server` for cold-start functions; use external cron or Vercel Cron hitting an HTTP route if scheduling is required.
+
 ## Never read or print secrets (.env, credentials)
 - Do not read `.env`, `.env.*`, or any file that may contain secrets (keys/tokens/passwords) in chat output. Validate required env vars by checking presence/emptiness via code or targeted non-secret config files (like `.env.example`) instead.
 
